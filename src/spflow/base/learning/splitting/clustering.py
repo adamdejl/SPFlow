@@ -35,7 +35,7 @@ def get_split_rows_KMeans(
     """
 
     def split_rows_KMeans(
-        local_data: np.ndarray, context: Context, scope: list[int]
+        local_data: np.ndarray, context: Context, scope: List[int]
     ) -> List[Tuple[np.ndarray, List[int], float]]:
         """Function for KMeans clustering with parameters set by outer function and arguments set during the learning process.
 

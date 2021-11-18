@@ -2,7 +2,7 @@
 @author Bennet Wittelsbach, based on code from Alejandro Molina
 """
 
-from typing import Callable, Tuple
+from typing import Callable, List, Tuple
 import numpy as np
 from joblib import Memory  # type: ignore
 from spflow.base.learning.splitting.clustering import get_split_rows_GMM, get_split_rows_KMeans
@@ -192,7 +192,7 @@ def get_splitting_functions(
 
 # TODO: while 'scope' is of type list[int], it only allows to build nodes over the first element of the list
 # therefore, extend the algorithm to create leafs over multiple scopes
-def create_parametric_leaf(data: np.ndarray, context: Context, scope: list[int]) -> ILeafNode:
+def create_parametric_leaf(data: np.ndarray, context: Context, scope: List[int]) -> ILeafNode:
     """Create a leaf node representing a parametric distribution.
 
     Create a leaf node of the type given by ds_context.parametric_types[scope] over the given scope

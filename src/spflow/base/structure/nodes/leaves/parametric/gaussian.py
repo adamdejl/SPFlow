@@ -7,7 +7,7 @@ Created on November 6, 2021
 from .parametric import ParametricLeaf
 from .statistical_types import ParametricType
 from .exceptions import InvalidParametersError
-from typing import Tuple, Dict, List
+from typing import Optional, Tuple, Dict, List
 import numpy as np
 from scipy.stats import norm  # type: ignore
 from scipy.stats._distn_infrastructure import rv_continuous  # type: ignore
@@ -32,22 +32,22 @@ class Gaussian(ParametricLeaf):
     """
 
     type = ParametricType.CONTINUOUS
-    
-    """@dispatch(list)
-    def __init__(self, scope: List[int]) -> None:
+
+    def __init__(
+        self, scope: List[int], mean: Optional[float] = None, stdev: Optional[float] = None
+    ) -> None:
         if len(scope) != 1:
-            raise ValueError(f"Scope size for Gaussian should be 1, but was: {len(scope)}")
+            raise ValueError(
+                f"Scope size for {self.__class__.__name__} should be 1, but was: {len(scope)}"
+            )
+
         super().__init__(scope)
 
-        np.random.seed(17) # maybe outsource this (eg. fct arg or global var)
-        mean = np.random.uniform(-1.0, 1.0)
-        stdev = np.random.uniform(0, 1)
-        self.set_params(mean, stdev)"""
+        if mean is None:
+            mean = np.random.uniform(-1.0, 1.0)
+        if stdev is None:
+            stdev = np.random.uniform(1.0, 3.0)
 
-    def __init__(self, scope: List[int], mean: float, stdev: float) -> None:
-        if len(scope) != 1:
-            raise ValueError(f"Scope size for Gaussian should be 1, but was: {len(scope)}")
-        super().__init__(scope)
         self.set_params(mean, stdev)
 
     def set_params(self, mean: float, stdev: float) -> None:
@@ -59,6 +59,10 @@ class Gaussian(ParametricLeaf):
         if stdev <= 0.0:
             raise ValueError(
                 f"Standard deviation for Gaussian distribution must be greater than 0.0, but was: {stdev}"
+            )
+        if get_scipy_object(self).pdf(mean, loc=mean, scale=stdev) >= 1.0:
+            print(
+                f"Warning: 'Degenerated' PDF! Density at node.mean is greater than 1.0! Node: {self}, mean: {mean}, stdev: {stdev}"
             )
 
         self.mean = mean

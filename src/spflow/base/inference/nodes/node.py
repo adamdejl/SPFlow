@@ -113,6 +113,7 @@ _node_likelihood: Dict[Type, Callable] = {
 }
 
 
+# TODO: infer network_type and node from top module that is passed to likelihood?
 @dispatch(SPN, INode, ndarray, node_likelihood=dict)
 def likelihood(
     network_type: NetworkType,

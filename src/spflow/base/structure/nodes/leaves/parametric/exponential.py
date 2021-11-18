@@ -7,7 +7,7 @@ Created on November 6, 2021
 from .parametric import ParametricLeaf
 from .statistical_types import ParametricType
 from .exceptions import InvalidParametersError
-from typing import Tuple, Dict, List
+from typing import Optional, Tuple, Dict, List
 import numpy as np
 from scipy.stats import expon  # type: ignore
 from scipy.stats._distn_infrastructure import rv_continuous  # type: ignore
@@ -29,12 +29,17 @@ class Exponential(ParametricLeaf):
 
     type = ParametricType.POSITIVE
 
-    def __init__(self, scope: List[int], l: float) -> None:
-
+    def __init__(self, scope: List[int], l: Optional[float] = None) -> None:
         if len(scope) != 1:
-            raise ValueError(f"Scope size for Exponential should be 1, but was: {len(scope)}")
+            raise ValueError(
+                f"Scope size for {self.__class__.__name__} should be 1, but was: {len(scope)}"
+            )
 
         super().__init__(scope)
+
+        if l is None:
+            l = np.random.uniform(0.0, 10.0)
+
         self.set_params(l)
 
     def set_params(self, l: float) -> None:

@@ -7,7 +7,7 @@ Created on November 6, 2021
 from .parametric import ParametricLeaf
 from .statistical_types import ParametricType
 from .exceptions import InvalidParametersError
-from typing import Tuple, Dict, List
+from typing import Optional, Tuple, Dict, List
 import numpy as np
 from scipy.stats import hypergeom  # type: ignore
 from scipy.stats._distn_infrastructure import rv_discrete  # type: ignore
@@ -33,12 +33,27 @@ class Hypergeometric(ParametricLeaf):
 
     type = ParametricType.COUNT
 
-    def __init__(self, scope: List[int], N: int, M: int, n: int) -> None:
-
+    def __init__(
+        self,
+        scope: List[int],
+        N: Optional[int] = None,
+        M: Optional[int] = None,
+        n: Optional[int] = None,
+    ) -> None:
         if len(scope) != 1:
-            raise ValueError(f"Scope size for Hypergeometric should be 1, but was: {len(scope)}")
+            raise ValueError(
+                f"Scope size for {self.__class__.__name__} should be 1, but was: {len(scope)}"
+            )
 
         super().__init__(scope)
+
+        if N is None:
+            N = np.random.randint(1, 100)
+        if M is None:
+            M = np.random.randint(0, N)
+        if n is None:
+            n = np.random.randint(0, N)
+
         self.set_params(N, M, n)
 
     def set_params(self, N: int, M: int, n: int) -> None:

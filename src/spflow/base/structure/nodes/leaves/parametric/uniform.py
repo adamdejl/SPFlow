@@ -7,7 +7,7 @@ Created on November 6, 2021
 from .parametric import ParametricLeaf
 from .statistical_types import ParametricType
 from .exceptions import InvalidParametersError
-from typing import Tuple, Dict, List
+from typing import Optional, Tuple, Dict, List
 import numpy as np
 from scipy.stats import uniform  # type: ignore
 from scipy.stats._distn_infrastructure import rv_continuous  # type: ignore
@@ -32,12 +32,21 @@ class Uniform(ParametricLeaf):
 
     type = ParametricType.CONTINUOUS
 
-    def __init__(self, scope: List[int], start: float, end: float) -> None:
-
+    def __init__(
+        self, scope: List[int], start: Optional[float] = None, end: Optional[float] = None
+    ) -> None:
         if len(scope) != 1:
-            raise ValueError(f"Scope size for Poisson should be 1, but was: {len(scope)}")
+            raise ValueError(
+                f"Scope size for {self.__class__.__name__} should be 1, but was: {len(scope)}"
+            )
 
         super().__init__(scope)
+
+        if end is None:
+            end = np.random.uniform(2.0, 10.0)
+        if start is None:
+            start = np.random.uniform(1.0, end)
+
         self.set_params(start, end)
 
     def set_params(self, start: float, end: float) -> None:

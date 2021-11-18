@@ -119,9 +119,17 @@ class TestLearnSPN(unittest.TestCase):
             data, context=Context(parametric_types=[type(expected)], domains=domains), scope=[0]
         )
 
-        self.assertDictEqual(
-            get_scipy_object_parameters(expected), get_scipy_object_parameters(mle)
-        )
+        #self.assertDictEqual(
+        #    get_scipy_object_parameters(expected), get_scipy_object_parameters(mle)
+        #)
+
+        exp_param = get_scipy_object_parameters(expected)
+        mle_param = get_scipy_object_parameters(mle)
+
+        self.assertEqual(len(exp_param), len(mle_param))
+        keys = exp_param.keys()
+        for key in keys:
+            self.assertAlmostEqual(exp_param[key], mle_param[key])
 
         return mle
 

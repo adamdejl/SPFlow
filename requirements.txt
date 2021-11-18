@@ -1,6 +1,7 @@
 joblib
 multipledispatch>=0.6.0
 mypy>=0.770
+networkx
 numpy>=1.17.4
 scipy>=1.5.0
 scikit-learn>=0.18

@@ -27,7 +27,7 @@ class ParametricType(Enum):
         self._meta_type = meta_type
 
     @property
-    def meta_type(self) -> int:
+    def meta_type(self) -> MetaType:
         return self._meta_type
 
 

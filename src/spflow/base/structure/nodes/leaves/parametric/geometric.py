@@ -7,7 +7,7 @@ Created on November 6, 2021
 from .parametric import ParametricLeaf
 from .statistical_types import ParametricType
 from .exceptions import InvalidParametersError
-from typing import Tuple, Dict, List
+from typing import Optional, Tuple, Dict, List
 import numpy as np
 from scipy.stats import geom  # type: ignore
 from scipy.stats._distn_infrastructure import rv_discrete  # type: ignore
@@ -28,12 +28,17 @@ class Geometric(ParametricLeaf):
 
     type = ParametricType.BINARY
 
-    def __init__(self, scope: List[int], p: float) -> None:
-
+    def __init__(self, scope: List[int], p: Optional[float] = None) -> None:
         if len(scope) != 1:
-            raise ValueError(f"Scope size for Geometric should be 1, but was: {len(scope)}")
+            raise ValueError(
+                f"Scope size for {self.__class__.__name__} should be 1, but was: {len(scope)}"
+            )
 
         super().__init__(scope)
+
+        if p is None:
+            p = np.random.uniform(0.0, 1.0)
+
         self.set_params(p)
 
     def set_params(self, p: float) -> None:

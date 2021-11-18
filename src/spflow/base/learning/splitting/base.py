@@ -122,7 +122,7 @@ def clusters_by_adjacency_matrix(
 
 
 def split_data_by_clusters(
-    data: np.ndarray, clusters: np.ndarray, scope: list[int], rows: bool = True
+    data: np.ndarray, clusters: np.ndarray, scope: List[int], rows: bool = True
 ) -> List[Tuple[np.ndarray, List[int], float]]:
     """Split a dataset into given clusters
 

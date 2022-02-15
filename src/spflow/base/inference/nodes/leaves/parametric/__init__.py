@@ -11,3 +11,5 @@ from .geometric import node_likelihood, node_log_likelihood
 from .hypergeometric import node_likelihood, node_log_likelihood
 from .exponential import node_likelihood, node_log_likelihood
 from .gamma import node_likelihood, node_log_likelihood
+from .categorical import node_likelihood, node_log_likelihood
+from .categorical_dictionary import node_likelihood, node_log_likelihood

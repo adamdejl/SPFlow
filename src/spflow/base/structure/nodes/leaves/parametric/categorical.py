@@ -41,7 +41,8 @@ class Categorical(ParametricLeaf):
         self.set_params(p)
 
     def set_params(self, p: List[float]) -> None:
-        if np.any((p <= [0.0]) | (p >= [1.0])):
+        p = np.array(p)
+        if np.any((p < 0.0) | (p > 1.0)):
             raise ValueError(
                 f"Values of p for Categorical distribution must be between 0 and 1, but were: {p}"
             )
@@ -50,7 +51,7 @@ class Categorical(ParametricLeaf):
                 f"Values of p for Categorical distribution must sum up to 1, but were: {np.sum(p)}"
             )
 
-        self.p = p
+        self.p = p.tolist()
         self.k = len(p)
 
     def get_params(self) -> List[int]:

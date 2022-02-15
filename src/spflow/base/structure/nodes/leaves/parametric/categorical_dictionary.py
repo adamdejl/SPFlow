@@ -43,7 +43,7 @@ class CategoricalDictionary(ParametricLeaf):
 
     def set_params(self, p: Dict[int, float]) -> None:
         vals = list(p.values())
-        if np.any((vals <= [0.0]) | (vals >= [1.0])):
+        if np.any((vals < [0.0]) | (vals > [1.0])):
             raise ValueError(
                 f"Values of p for Categorical distribution must be between 0 and 1, but were: {p}"
             )

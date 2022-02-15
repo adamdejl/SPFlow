@@ -364,7 +364,7 @@ def learn_spn_structure(
 
             local_tasks = []
             local_children_params = []
-            # split_start_t = perf_counter()
+            split_start_t = perf_counter()
             for col in range(len(scope)):
                 node.children.append(None)  # type: ignore
                 local_tasks.append(len(node.children) - 1)
@@ -375,7 +375,7 @@ def learn_spn_structure(
                 child_node = create_leaf(*child_params)
                 node.children[child_pos] = child_node
 
-            # split_end_t = perf_counter()
+            split_end_t = perf_counter()
 
             logging.debug(
                 "\t\tnaive factorization {} columns (in {:.5f} secs)".format(

@@ -5,6 +5,7 @@ Created on August 09, 2021
 
 This file provides the sampling methods for parametric leaves.
 """
+from numpy.random import RandomState
 from spflow.base.structure.nodes.node import ILeafNode, INode
 from multipledispatch import dispatch  # type: ignore
 from spflow.base.structure.nodes.leaves.parametric import (
@@ -16,13 +17,14 @@ from spflow.base.structure.nodes.leaves.parametric import (
     Geometric,
     Exponential,
     Bernoulli,
+    Categorical,
+    CategoricalDictionary,
     get_scipy_object_parameters,
     get_scipy_object,
 )
-
-# TODO: Categorical, CategoricalDictionary
-
 import numpy as np
+
+# TODO Binomial, NegativeBinomial, Hypergeometric, MultivariateGaussian
 
 
 @dispatch(INode)  # type: ignore[no-redef]
@@ -126,4 +128,26 @@ def sample_parametric_node(
     scipy_obj, params = get_scipy_object(node), get_scipy_object_parameters(node)
 
     X = scipy_obj.rvs(size=n_samples, random_state=rand_gen, **params)
+    return X
+
+
+@dispatch(Categorical)  # type: ignore[no-redef]
+def sample_parametric_node(
+    node: Categorical, n_samples: int, rand_gen: np.random.RandomState
+) -> np.ndarray:
+    X = rand_gen.choice(np.arange(node.k), p=node.p, size=n_samples)
+    return X
+
+
+@dispatch(CategoricalDictionary)  # type: ignore[no-redef]
+def sample_parametric_node(
+    node: CategoricalDictionary, n_samples: int, rand_gen: np.random.RandomState
+) -> np.ndarray:
+    vals = []
+    ps = []
+
+    for v, p in node.p.items():
+        vals.append(v)
+        ps.append(p)
+    X = rand_gen.choice(vals, p=ps, size=n_samples)
     return X

@@ -30,8 +30,10 @@ def node_log_likelihood(node: Gaussian, data: np.ndarray) -> np.ndarray:
     probs = np.zeros((data.shape[0], 1))
     data = data[:, node.scope]
     marg_ids = np.isnan(data)
-    temp = get_scipy_object(node).logpdf(
-        x=data[~marg_ids], **get_scipy_object_parameters(node)
-    ).flatten()
+    temp = (
+        get_scipy_object(node)
+        .logpdf(x=data[~marg_ids], **get_scipy_object_parameters(node))
+        .flatten()
+    )
     probs[~marg_ids] = temp
     return probs

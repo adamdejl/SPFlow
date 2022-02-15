@@ -5,10 +5,11 @@ Created on December 04, 2021
 """
 
 from spflow.base.structure.nodes.leaves.parametric import Categorical
-from multipledispatch import dispatch # type: ignore
+from multipledispatch import dispatch  # type: ignore
 import numpy as np
 
-@dispatch(Categorical, data=np.ndarray) # type: ignore[no-redef]
+
+@dispatch(Categorical, data=np.ndarray)  # type: ignore[no-redef]
 def node_likelihood(node: Categorical, data: np.ndarray) -> np.ndarray:
     probs = np.ones((data.shape[0], 1))
     data = data[:, node.scope]
@@ -27,8 +28,9 @@ def node_likelihood(node: Categorical, data: np.ndarray) -> np.ndarray:
     probs[idx_in] = np.array(node.p)[categorical_data[~out_domain_ids]]
     return probs
 
-@dispatch(Categorical, data=np.ndarray) # type: ignore[no-redef]
-def node_log_likelihood(node:Categorical, data: np.ndarray) -> np.ndarray:
+
+@dispatch(Categorical, data=np.ndarray)  # type: ignore[no-redef]
+def node_log_likelihood(node: Categorical, data: np.ndarray) -> np.ndarray:
     probs = np.zeros((data.shape[0], 1))
     data = data[:, node.scope]
     marg_ids = np.isnan(data)

@@ -4,8 +4,8 @@ Created on July 01, 2021
 @authors: Bennet Wittelsbach
 """
 
-import numpy as np # type: ignore
-from multipledispatch import dispatch # type: ignore
+import numpy as np  # type: ignore
+from multipledispatch import dispatch  # type: ignore
 from spflow.base.structure.nodes.leaves.parametric.exceptions import (
     InvalidParametersError,
     NotViableError,
@@ -135,8 +135,8 @@ def maximum_likelihood_estimation(node: Hypergeometric, data: np.ndarray) -> Non
     )
 
 
-@dispatch(Categorical, np.ndarray) # type: ignore[no-redef]
-def maximum_likelihood_estimation(node: Categorical, data:np.ndarray) -> None:
+@dispatch(Categorical, np.ndarray)  # type: ignore[no-redef]
+def maximum_likelihood_estimation(node: Categorical, data: np.ndarray) -> None:
     p = [0] * node.k
     for i in range(node.k):
         p[i] = np.sum(data == i)
@@ -145,8 +145,8 @@ def maximum_likelihood_estimation(node: Categorical, data:np.ndarray) -> None:
     node.set_params(p)
 
 
-@dispatch(CategoricalDictionary, np.ndarray) # type: ignore[no-redef]
-def maximum_likelihood_estimation(node: CategoricalDictionary, data:np.ndarray) -> None:
+@dispatch(CategoricalDictionary, np.ndarray)  # type: ignore[no-redef]
+def maximum_likelihood_estimation(node: CategoricalDictionary, data: np.ndarray) -> None:
     v, c = np.unique(data, return_counts=True)
     r = c / np.sum(c)
     p = dict(zip(v.tolist(), r.tolist()))

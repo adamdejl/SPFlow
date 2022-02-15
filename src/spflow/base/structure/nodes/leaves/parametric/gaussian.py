@@ -87,33 +87,40 @@ def get_scipy_object_parameters(node: Gaussian) -> Dict[str, float]:
     return parameters
 
 
-@dispatch(Gaussian) # type: ignore[no-redef]
+@dispatch(Gaussian)  # type: ignore[no-redef]
 def get_natural_parameters(node: Gaussian) -> np.ndarray:
-    natural_parameters = [node.mean / (node.stdev**2), -1 / (2*node.stdev**2)]
+    natural_parameters = [node.mean / (node.stdev ** 2), -1 / (2 * node.stdev ** 2)]
     return np.array(natural_parameters)
 
-@dispatch(Gaussian, np.ndarray) # type: ignore[no-redef]
+
+@dispatch(Gaussian, np.ndarray)  # type: ignore[no-redef]
 def get_base_measure(node: Gaussian, X: np.ndarray) -> np.ndarray:
-    base_measure = [0.398942280401432677939946059934] # constant: equals 1 / np.sqrt(2*np.pi)
+    base_measure = [0.398942280401432677939946059934]  # constant: equals 1 / np.sqrt(2*np.pi)
     return np.array(base_measure)
 
-@dispatch(Gaussian, np.ndarray) # type: ignore[no-redef]
+
+@dispatch(Gaussian, np.ndarray)  # type: ignore[no-redef]
 def get_sufficient_statistics(node: Gaussian, X: np.ndarray) -> np.ndarray:
-    sufficient_statistics = [[x, x**2] for x in X]
+    sufficient_statistics = [[x, x ** 2] for x in X]
     return np.array(sufficient_statistics)
 
-@dispatch(Gaussian) # type: ignore[no-redef]
+
+@dispatch(Gaussian)  # type: ignore[no-redef]
 def get_log_partition_natural(node: Gaussian) -> float:
     natural_parameters = get_natural_parameters(node)
-    log_partition = (-natural_parameters[0]**2/(4*natural_parameters[1])) - 1/2 * np.log(-2*natural_parameters[1])
+    log_partition = (-natural_parameters[0] ** 2 / (4 * natural_parameters[1])) - 1 / 2 * np.log(
+        -2 * natural_parameters[1]
+    )
     return log_partition
 
-@dispatch(Gaussian) # type: ignore[no-redef]
+
+@dispatch(Gaussian)  # type: ignore[no-redef]
 def get_log_partition_param(node: Gaussian) -> float:
-    log_partition = (node.mean**2) / (2 * node.stdev**2) + np.log(node.stdev)
+    log_partition = (node.mean ** 2) / (2 * node.stdev ** 2) + np.log(node.stdev)
     return log_partition
 
-@dispatch(Gaussian, np.ndarray, np.ndarray) # type: ignore[no-redef]
+
+@dispatch(Gaussian, np.ndarray, np.ndarray)  # type: ignore[no-redef]
 def update_parameters_em(node: Gaussian, data: np.ndarray, responsibilities: np.ndarray) -> None:
     responsilbility_factor = 1 / np.sum(responsibilities)
     mean = responsilbility_factor * (responsibilities.T @ data[:, node.scope])

@@ -27,7 +27,8 @@ def sample_prod(
     node: ISumNode,
     input_vals: List,
     data: np.ndarray,
-    rand_gen: np.random.RandomState,
+    lls_per_node=None,
+    rand_gen: np.random.RandomState = None,
 ) -> Dict[INode, np.ndarray]:
     """
     Sampling procedure for ProdNode. Passes on the input_vals to its children.
@@ -39,6 +40,8 @@ def sample_prod(
             Determines which sample row in data should be sampled for a leafs rv.
         data:
             Data given to specify evidence or instances to be sampled by setting np.nan.
+        lls_per_node:
+            Holds the tracked likelihoods from the bottom up pass.
         rand_gen:
             Seed to specify random state.
     Returns: Dictionary, which has child nodes of input node as key and an array of integers,
@@ -57,7 +60,8 @@ def sample_sum(
     node: ISumNode,
     input_vals: List,
     data: np.ndarray,
-    rand_gen: np.random.RandomState,
+    lls_per_node=None,
+    rand_gen: np.random.RandomState = None,
 ) -> Dict[INode, np.ndarray]:
     """
     Sampling procedure for sum nodes. Decides which child branch is to be sampled from by adding
@@ -71,6 +75,8 @@ def sample_sum(
             Determines which sample row in data should be sampled for this leafs rv.
         data:
             Data given to specify evidence or instances to be sampled by setting np.nan.
+        lls_per_node:
+            Holds the tracked likelihoods from the bottom up pass.
         rand_gen:
             Seed to specify random state.
 
@@ -82,7 +88,7 @@ def sample_sum(
 
     w_children_log_probs: np.ndarray = np.zeros((len(conc_input_vals), len(node.weights)))
     for i, c in enumerate(node.children):
-        w_children_log_probs[:, i] = np.log(node.weights[i])
+        w_children_log_probs[:, i] = lls_per_node[c][input_vals] + np.log(node.weights[i])
 
     z_gumbels: np.ndarray = rand_gen.gumbel(
         loc=0,
@@ -104,7 +110,8 @@ def sample_leaf(
     node: ILeafNode,
     input_vals: List,
     data: np.ndarray,
-    rand_gen: np.random.RandomState,
+    lls_per_node=None,
+    rand_gen: np.random.RandomState = None,
 ) -> None:
     """
     Samples leaf nodes according to their leaf type.
@@ -116,10 +123,11 @@ def sample_leaf(
             Determines which sample instance in data should is sampled for this leafs rv.
         data:
             Data given to specify evidence or instances to be sampled by setting np.nan.
+        lls_per_node:
+            Holds the tracked likelihoods from the bottom up pass.
         rand_gen:
             Seed to specify random state.
     """
-
     conc_input_vals: np.ndarray = np.concatenate(input_vals)
 
     # find cells where nans are to be replaced with samples
@@ -185,10 +193,24 @@ def sample_instances(
         np.any(np.isnan(data), axis=1)
     ), "each row must have at least a nan value where the samples will be substituted"
 
-    log_likelihood(node, data, network_type)
+    lls_per_node = {}
+
+    all_results = {}
+
+    log_likelihood(node, data, network_type, cache=all_results)
+
+    for n, ll in all_results.items():
+        lls_per_node[n] = ll[:, 0]
 
     instance_ids: np.ndarray = np.arange(data.shape[0])
 
-    eval_spn_top_down(node, node_sampling, parent_result=instance_ids, data=data, rand_gen=rand_gen)
+    eval_spn_top_down(
+        node,
+        node_sampling,
+        parent_result=instance_ids,
+        data=data,
+        lls_per_node=lls_per_node,
+        rand_gen=rand_gen,
+    )
 
     return data

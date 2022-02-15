@@ -170,7 +170,6 @@ class TestSampling(unittest.TestCase):
             ),
             axis=0,
         )
-
         self.assertTrue(
             np.allclose(result, np.array([0.3 * 1 + 0.7 * 3, 0.3 * 2 + 0.7 * 4]), atol=0.01),
         )
@@ -199,6 +198,63 @@ class TestSampling(unittest.TestCase):
                 np.array([rat_spn_module.nodes[0].mean, rat_spn_module.nodes[1].mean]),
                 atol=0.01,
             ),
+        )
+
+    def test_parameter_sampling_nodes_marg(self):
+        spn = ISumNode(
+            children=[
+                IProductNode(
+                    children=[
+                        Gaussian(scope=[0], mean=1, stdev=1.0),
+                        Gaussian(scope=[1], mean=2, stdev=2.0),
+                    ],
+                    scope=[0, 1],
+                ),
+                IProductNode(
+                    children=[
+                        Gaussian(scope=[0], mean=3, stdev=3.0),
+                        Gaussian(scope=[1], mean=4, stdev=4.0),
+                    ],
+                    scope=[0, 1],
+                ),
+            ],
+            scope=[0, 1],
+            weights=np.array([0.3, 0.7]),
+        )
+
+        result = np.mean(
+            sample_instances(
+                SPN(), spn, np.array([np.nan, 1] * 1000000).reshape(-1, 2), RandomState(123)
+            ),
+            axis=0,
+        )
+        self.assertTrue(
+            np.allclose(result, np.array([2, 1]), atol=0.01),
+        )
+
+    def test_dag_spns(self):
+        D = Gaussian(mean=0.0, stdev=1.0, scope=[0])
+        E = Gaussian(mean=10.0, stdev=1.0, scope=[0])
+        F = Gaussian(mean=20.0, stdev=1.0, scope=[0])
+
+        B = ISumNode(children=[D, E], weights=np.array([0.5, 0.5]), scope=[0])
+        C = ISumNode(children=[E, F], weights=np.array([0.5, 0.5]), scope=[0])
+
+        H = ISumNode(children=[D, E], weights=np.array([0.5, 0.5]), scope=[0])
+        I = ISumNode(children=[D, E], weights=np.array([0.5, 0.5]), scope=[0])
+
+        G = ISumNode(children=[H, I], weights=np.array([0.5, 0.5]), scope=[0])
+        A = ISumNode(children=[B, C], weights=np.array([0.5, 0.5]), scope=[0])
+        Z = ISumNode(children=[A, G], weights=np.array([0.5, 0.5]), scope=[0])
+
+        data = np.zeros((2000, 1))
+
+        data[:, 0] = np.nan
+
+        samples = np.mean(sample_instances(SPN(), Z, data, np.random.RandomState(17)), axis=0)
+
+        self.assertTrue(
+            np.allclose(samples, np.array([7.63190505]), atol=0.01),
         )
 
 

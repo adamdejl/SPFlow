@@ -4,8 +4,8 @@ Created on July 01, 2021
 @authors: Bennet Wittelsbach
 """
 
-import numpy as np
-from multipledispatch import dispatch  # type: ignore
+import numpy as np # type: ignore
+from multipledispatch import dispatch # type: ignore
 from spflow.base.structure.nodes.leaves.parametric.exceptions import (
     InvalidParametersError,
     NotViableError,
@@ -20,6 +20,8 @@ from spflow.base.structure.nodes.leaves.parametric import (
     Poisson,
     Geometric,
     Hypergeometric,
+    Categorical,
+    CategoricalDictionary,
     Exponential,
     Gamma,
 )
@@ -131,6 +133,24 @@ def maximum_likelihood_estimation(node: Hypergeometric, data: np.ndarray) -> Non
     raise NotViableError(
         "The Hypergeometric distribution parameters 'M, N, n' cannot be estimated via Maximum-Likelihood Estimation"
     )
+
+
+@dispatch(Categorical, np.ndarray) # type: ignore[no-redef]
+def maximum_likelihood_estimation(node: Categorical, data:np.ndarray) -> None:
+    p = [0] * node.k
+    for i in range(node.k):
+        p[i] = np.sum(data == i)
+    p = p / np.sum(p)
+    p = p.tolist()
+    node.set_params(p)
+
+
+@dispatch(CategoricalDictionary, np.ndarray) # type: ignore[no-redef]
+def maximum_likelihood_estimation(node: CategoricalDictionary, data:np.ndarray) -> None:
+    v, c = np.unique(data, return_counts=True)
+    r = c / np.sum(c)
+    p = dict(zip(v.tolist(), r.tolist()))
+    node.set_params(p)
 
 
 @dispatch(Exponential, np.ndarray)  # type: ignore[no-redef]

@@ -60,15 +60,15 @@ class Hypergeometric(ParametricLeaf):
 
         if N < 0 or not np.isfinite(N):
             raise ValueError(
-                f"Value of N for Hypergeometric distribution must be greater of equal to 0, but was: {N}"
+                f"Value of N for Hypergeometric distribution must be greater or equal to 0, but was: {N}"
             )
         if M < 0 or M > N or not np.isfinite(M):
             raise ValueError(
-                f"Value of M for Hypergeometric distribution must be greater of equal to 0 and less or equal to N, but was: {M}"
+                f"Value of M for Hypergeometric distribution must be greater or equal to 0 and less or equal to N, but was: {M}"
             )
         if n < 0 or n > N or not np.isfinite(n):
             raise ValueError(
-                f"Value of n for Hypergeometric distribution must be greater of equal to 0 and less or equal to N, but was: {n}"
+                f"Value of n for Hypergeometric distribution must be greater or equal to 0 and less or equal to N, but was: {n}"
             )
 
         self.N = N

@@ -15,4 +15,6 @@ from .geometric import Geometric, get_scipy_object, get_scipy_object_parameters
 from .hypergeometric import Hypergeometric, get_scipy_object, get_scipy_object_parameters
 from .exponential import Exponential, get_scipy_object, get_scipy_object_parameters
 from .gamma import Gamma, get_scipy_object, get_scipy_object_parameters
+from .categorical import Categorical
+from .categorical_dictionary import CategoricalDictionary
 from .statistical_types import MetaType, ParametricType

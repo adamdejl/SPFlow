@@ -7,6 +7,8 @@ from spflow.base.structure.nodes.leaves.parametric import (
     Gaussian,
     LogNormal,
     Bernoulli,
+    Categorical,
+    CategoricalDictionary,
     Gamma,
     Poisson,
     Geometric,
@@ -48,7 +50,7 @@ class TestLearnSPN(unittest.TestCase):
         for i in instances:
             for r in ratios:
                 data = self.get_2d_gauss_clusters(instances=i, ratio=r)
-                context = Context(parametric_types=[Gaussian, Gaussian, Bernoulli])
+                context = Context(parametric_types=[Gaussian, Gaussian, Categorical]) # Context(parametric_types=[Gaussian, Gaussian, Bernoulli]) #
                 context.add_domains(data)
                 min_instances_slice = len(data) * min_instances_ratio
                 spn = learn_parametric_spn(
@@ -119,10 +121,6 @@ class TestLearnSPN(unittest.TestCase):
             data, context=Context(parametric_types=[type(expected)], domains=domains), scope=[0]
         )
 
-        #self.assertDictEqual(
-        #    get_scipy_object_parameters(expected), get_scipy_object_parameters(mle)
-        #)
-
         exp_param = get_scipy_object_parameters(expected)
         mle_param = get_scipy_object_parameters(mle)
 
@@ -134,9 +132,6 @@ class TestLearnSPN(unittest.TestCase):
         return mle
 
     def test_parametric_leaf(self):
-        # data = np.array([0, 0, 5, 5]).reshape(-1, 1)
-        # self.assert_correct(CategoricalDictionary(p={0: 0.5, 5: 0.5}, scope=0), data)
-
         data = np.array([1, 2, 3, 4, 5]).reshape(-1, 1)
         self.assert_parametric_leaf(
             Gaussian(mean=np.mean(data), stdev=np.std(data), scope=[0]), data
@@ -157,11 +152,21 @@ class TestLearnSPN(unittest.TestCase):
 
         self.assert_parametric_leaf(Geometric(p=1.0 / np.mean(data), scope=[0]), data)
 
-        # data = np.array([0, 0, 1, 3, 5, 6, 6, 6, 6, 6]).reshape(-1, 1)
-        # self.assert_correct(Categorical(p=[2 / 10, 1 / 10, 0 / 10, 1 / 10, 0 / 10, 1 / 10, 5 / 10], scope=0), data)
-
         data = np.array([0, 0, 1, 1, 1, 1, 1, 1]).reshape(-1, 1)
         self.assert_parametric_leaf(Bernoulli(p=0.75, scope=[0]), data)
+
+        data = np.array([0, 0, 1, 3, 5, 6, 6, 6, 6, 6]).reshape(-1, 1)
+        expected = Categorical(p=[2 / 10, 1 / 10, 0 / 10, 1 / 10, 0 / 10, 1 / 10, 5 / 10], scope=[0])
+        context = Context(parametric_types=[Categorical]).add_domains(data)
+        mle = create_parametric_leaf(data=data, context=context, scope=[0])
+        self.assertListEqual(expected.p, mle.p)
+        self.tested.add(Categorical)
+
+        data = np.array([0, 0, 1, 3, 5, 6, 6, 6, 6, 6]).reshape(-1, 1)
+        expected = CategoricalDictionary(p={0: 2/10, 1: 1/10, 3: 1/10, 5: 1/10, 6: 5/10}, scope=[0])
+        mle = create_parametric_leaf(data=data, context=Context(parametric_types=[CategoricalDictionary]), scope=[0])
+        self.assertDictEqual(expected.p, mle.p)
+        self.tested.add(CategoricalDictionary)
 
         for child in ParametricLeaf.__subclasses__():
             if child not in self.tested:

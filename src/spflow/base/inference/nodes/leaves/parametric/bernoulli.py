@@ -36,6 +36,6 @@ def node_log_likelihood(node: Bernoulli, data: np.ndarray) -> np.ndarray:
     marg_ids = np.isnan(data)
     probs[~marg_ids] = get_scipy_object(node).logpmf(
         k=data[~marg_ids], **get_scipy_object_parameters(node)
-    )
+    ).flatten()
     probs[np.isinf(probs)] = MIN_NEG
     return probs

@@ -11,6 +11,7 @@ from spflow.base.structure.nodes.structural_transformations import prune
 from spflow.base.learning.context import Context
 
 import logging
+
 logger = logging.getLogger(__name__)
 logging.basicConfig(filename="learnSPN_log", level=logging.DEBUG)
 
@@ -247,7 +248,11 @@ def learn_spn_structure(
             is_first=(parent is root),
         )
 
-        logging.debug("OP: {} on slice {} (remaining tasks {})".format(operation, local_data.shape, len(tasks)))
+        logging.debug(
+            "OP: {} on slice {} (remaining tasks {})".format(
+                operation, local_data.shape, len(tasks)
+            )
+        )
 
         if operation == Operation.REMOVE_UNINFORMATIVE_FEATURES:
             node = IProductNode([], scope)
@@ -300,7 +305,9 @@ def learn_spn_structure(
             data_slices = split_rows(local_data, context, scope)
             split_end_t = perf_counter()
             logging.debug(
-               "\t\tfound {} row clusters (in {:.5f} secs)".format(len(data_slices), split_end_t - split_start_t)
+                "\t\tfound {} row clusters (in {:.5f} secs)".format(
+                    len(data_slices), split_end_t - split_start_t
+                )
             )
 
             if len(data_slices) == 1:
@@ -327,7 +334,9 @@ def learn_spn_structure(
             data_slices = split_cols(local_data, context, scope)
             split_end_t = perf_counter()
             logging.debug(
-               "\t\tfound {} col clusters (in {:.5f} secs)".format(len(data_slices), split_end_t - split_start_t)
+                "\t\tfound {} col clusters (in {:.5f} secs)".format(
+                    len(data_slices), split_end_t - split_start_t
+                )
             )
 
             if len(data_slices) == 1:
@@ -369,7 +378,9 @@ def learn_spn_structure(
             # split_end_t = perf_counter()
 
             logging.debug(
-               "\t\tnaive factorization {} columns (in {:.5f} secs)".format(len(scope), split_end_t - split_start_t)
+                "\t\tnaive factorization {} columns (in {:.5f} secs)".format(
+                    len(scope), split_end_t - split_start_t
+                )
             )
 
             continue
@@ -381,9 +392,9 @@ def learn_spn_structure(
             leaf_end_t = perf_counter()
 
             logging.debug(
-               "\t\t created leaf {} for scope={} (in {:.5f} secs)".format(
-                   node.__class__.__name__, scope, leaf_end_t - leaf_start_t
-               )
+                "\t\t created leaf {} for scope={} (in {:.5f} secs)".format(
+                    node.__class__.__name__, scope, leaf_end_t - leaf_start_t
+                )
             )
 
         else:

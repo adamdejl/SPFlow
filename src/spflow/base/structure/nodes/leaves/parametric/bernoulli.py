@@ -68,7 +68,7 @@ def get_scipy_object_parameters(node: Bernoulli) -> Dict[str, float]:
     return parameters
 
 
-@dispatch(Bernoulli, np.ndarray, np.ndarray) # type: ignore[no-redef]
+@dispatch(Bernoulli, np.ndarray, np.ndarray)  # type: ignore[no-redef]
 def update_parameters_em(node: Bernoulli, data: np.ndarray, responsibilities: np.ndarray) -> None:
     responsilbility_factor = 1 / np.sum(responsibilities)
     p = responsilbility_factor * (responsibilities.T @ data[:, node.scope])

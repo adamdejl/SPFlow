@@ -10,9 +10,9 @@ from spflow.base.structure.nodes.validity_checks import _isvalid_spn
 from spflow.base.structure.nodes.structural_transformations import prune
 from spflow.base.learning.context import Context
 
-# import logging
-# logger = logging.getLogger(__name__)
-# logging.basicConfig(filename="learnSPN_log", level=logging.DEBUG)
+import logging
+logger = logging.getLogger(__name__)
+logging.basicConfig(filename="learnSPN_log", level=logging.DEBUG)
 
 try:
     from time import perf_counter
@@ -247,8 +247,7 @@ def learn_spn_structure(
             is_first=(parent is root),
         )
 
-        # TODO: logging
-        # logging.debug("OP: {} on slice {} (remaining tasks {})".format(operation, local_data.shape, len(tasks)))
+        logging.debug("OP: {} on slice {} (remaining tasks {})".format(operation, local_data.shape, len(tasks)))
 
         if operation == Operation.REMOVE_UNINFORMATIVE_FEATURES:
             node = IProductNode([], scope)
@@ -300,10 +299,9 @@ def learn_spn_structure(
             split_start_t = perf_counter()
             data_slices = split_rows(local_data, context, scope)
             split_end_t = perf_counter()
-            # TODO: logging
-            # logging.debug(
-            #    "\t\tfound {} row clusters (in {:.5f} secs)".format(len(data_slices), split_end_t - split_start_t)
-            # )
+            logging.debug(
+               "\t\tfound {} row clusters (in {:.5f} secs)".format(len(data_slices), split_end_t - split_start_t)
+            )
 
             if len(data_slices) == 1:
                 tasks.append((local_data, parent, children_pos, scope, True, False))
@@ -328,10 +326,9 @@ def learn_spn_structure(
             split_start_t = perf_counter()
             data_slices = split_cols(local_data, context, scope)
             split_end_t = perf_counter()
-            # TODO: logging
-            # logging.debug(
-            #    "\t\tfound {} col clusters (in {:.5f} secs)".format(len(data_slices), split_end_t - split_start_t)
-            # )
+            logging.debug(
+               "\t\tfound {} col clusters (in {:.5f} secs)".format(len(data_slices), split_end_t - split_start_t)
+            )
 
             if len(data_slices) == 1:
                 tasks.append((local_data, parent, children_pos, scope, False, True))
@@ -371,12 +368,9 @@ def learn_spn_structure(
 
             # split_end_t = perf_counter()
 
-            # TODO: logging
-            # logging.debug(
-            #    "\t\tnaive factorization {} columns (in {:.5f} secs)".format(len(scope), split_end_t - split_start_t)
-            # )
-
-            # pool.close()
+            logging.debug(
+               "\t\tnaive factorization {} columns (in {:.5f} secs)".format(len(scope), split_end_t - split_start_t)
+            )
 
             continue
 
@@ -386,12 +380,11 @@ def learn_spn_structure(
             parent.children[children_pos] = node
             leaf_end_t = perf_counter()
 
-            # TODO: logging
-            # logging.debug(
-            #    "\t\t created leaf {} for scope={} (in {:.5f} secs)".format(
-            #        node.__class__.__name__, scope, leaf_end_t - leaf_start_t
-            #    )
-            # )
+            logging.debug(
+               "\t\t created leaf {} for scope={} (in {:.5f} secs)".format(
+                   node.__class__.__name__, scope, leaf_end_t - leaf_start_t
+               )
+            )
 
         else:
             raise Exception("Invalid operation: " + operation)

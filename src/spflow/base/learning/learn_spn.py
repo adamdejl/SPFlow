@@ -8,7 +8,7 @@ from joblib import Memory  # type: ignore
 from spflow.base.learning.splitting.clustering import get_split_rows_GMM, get_split_rows_KMeans
 from spflow.base.learning.splitting.rdc import get_split_cols_RDC_py, get_split_rows_RDC_py
 from spflow.base.learning.structure_learning import get_next_operation, learn_spn_structure
-from spflow.base.structure.nodes.leaves.parametric.parametric import ParametricLeaf
+from spflow.base.structure.nodes.leaves.parametric import ParametricLeaf, Categorical
 from spflow.base.structure.nodes.leaves.parametric.parameter_estimation import (
     maximum_likelihood_estimation,
 )
@@ -234,9 +234,9 @@ def create_parametric_leaf(data: np.ndarray, context: Context, scope: List[int])
 
     # TODO: extend to allow parameter estimation also via EM
     node = parametric_type(scope)  # type: ignore
-    # if parametric_type == Categorical:
-    #    k = int(np.max(ds_context.domains[idx]) + 1)
-    #    node = Categorical(p=(np.ones(k) / k).tolist())
+    if parametric_type == Categorical:
+        k = int(np.max(context.domains[idx]) + 1)
+        node = Categorical(scope=scope, p=(np.ones(k) / k).tolist())
 
     maximum_likelihood_estimation(node, data)
 

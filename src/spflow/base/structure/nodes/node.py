@@ -7,6 +7,7 @@ This file provides the basic components to build abstract probabilistic circuits
 and ILeafNode.
 """
 
+from re import I
 from typing import List, Tuple, cast, Callable, Set, Type, Deque, Optional, Dict, Union
 from multipledispatch import dispatch  # type: ignore
 import numpy as np
@@ -30,6 +31,7 @@ class INode:
         self.children = children
         self.scope = scope
         self.value: float = np.nan
+        self.id: int = -1
 
     def __str__(self) -> str:
         return f"{type(self).__name__}: {self.scope}"
@@ -78,15 +80,11 @@ class ISumNode(INode):
 
     """
 
-    def __init__(
-        self, children: List[INode], scope: List[int], weights: np.ndarray = None
-    ) -> None:
+    def __init__(self, children: List[INode], scope: List[int], weights: np.ndarray = None) -> None:
         super().__init__(children=children, scope=scope)
 
         if weights is None:
-            weights = (
-                np.random.rand(sum(len(child) for child in children)) + 1e-08
-            )  # avoid zeros
+            weights = np.random.rand(sum(len(child) for child in children)) + 1e-08  # avoid zeros
             weights /= weights.sum()
 
         self.weights = weights
@@ -224,9 +222,7 @@ def bfs(root: INode, func: Callable):
                     queue.append(c)
 
 
-def get_nodes_by_type(
-    node: INode, ntype: Union[Type, Tuple[Type, ...]] = INode
-) -> List[INode]:
+def get_nodes_by_type(node: INode, ntype: Union[Type, Tuple[Type, ...]] = INode) -> List[INode]:
     """Iterates SPN in breadth first order and collects nodes of type ntype..
 
     Args:
@@ -474,3 +470,17 @@ def eval_spn_top_down(
                         all_results[child] = []
                     all_results[child].append(param)
     return all_results[root]
+
+
+def set_node_ids(root: INode) -> None:
+    """Set node IDs in the SPN by counting the nodes.
+    
+    Args: 
+        root: The root node of the SPN.
+
+    Returns: None
+    """
+    i = 0
+    for node in get_topological_order(root):
+        node.id = i
+        i += 1

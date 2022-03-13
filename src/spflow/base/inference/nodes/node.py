@@ -114,12 +114,13 @@ _node_likelihood: Dict[Type, Callable] = {
 
 
 # TODO: infer network_type and node from top module that is passed to likelihood?
-@dispatch(SPN, INode, ndarray, node_likelihood=dict)
+@dispatch(SPN, INode, ndarray, node_likelihood=dict, return_all_results=bool)
 def likelihood(
     network_type: NetworkType,
     node: INode,
     data: ndarray,
     node_likelihood: Dict[Type, Callable] = _node_likelihood,
+    return_all_results: bool = False,
 ) -> ndarray:
     """
     Calculates the likelihood for a SPN.
@@ -141,15 +142,19 @@ def likelihood(
     all_results: Optional[Dict[INode, ndarray]] = {}
     result: ndarray = eval_spn_bottom_up(node, node_likelihood, all_results=all_results, data=data)
 
-    return result
+    if return_all_results:
+        return all_results
+    else:
+        return result
 
 
-@dispatch(SPN, INode, ndarray, node_log_likelihood=dict)
+@dispatch(SPN, INode, ndarray, node_log_likelihood=dict, return_all_results=bool)
 def log_likelihood(
     network_type: NetworkType,
     node: INode,
     data: ndarray,
     node_log_likelihood: Dict[Type, Callable] = _node_log_likelihood,
+    return_all_results: bool = False
 ) -> ndarray:
     """
     Calculates the log-likelihood for a SPN.
@@ -167,4 +172,4 @@ def log_likelihood(
 
     Returns: Log-likelihood value for SPN.
     """
-    return likelihood(network_type, node, data, node_likelihood=node_log_likelihood)
+    return likelihood(network_type, node, data, node_likelihood=node_log_likelihood, return_all_results=return_all_results)

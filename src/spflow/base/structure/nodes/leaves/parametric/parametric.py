@@ -26,6 +26,13 @@ class ParametricLeaf(ILeafNode, ABC):
     def __init__(self, scope: List[int]) -> None:
         super().__init__(scope)
 
+    def __str__(self) -> str:
+        parameters = get_scipy_object_parameters(self)
+        return f"{type(self).__name__}: {self.scope} - Param.: {parameters}"
+
+    def __repr__(self) -> str:
+        return self.__str__()
+
 
 @dispatch(INode)  # type: ignore[no-redef]
 def get_scipy_object(node: INode) -> None:

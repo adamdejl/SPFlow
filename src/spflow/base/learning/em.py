@@ -34,11 +34,11 @@ def compute_exponential_family_pdf(node: INode, X: np.ndarray) -> float:
     sufficient_statistics = get_sufficient_statistics(node, X)
     log_partition_n = get_log_partition_natural(node)
     log_partition_p = get_log_partition_param(node)
-    return base_measure * np.exp(natural_parameters @ sufficient_statistics.T - log_partition_n)
+    return base_measure * np.exp(natural_parameters @ sufficient_statistics.T - log_partition_n)    
 
 
 @dispatch(ISumNode, data=np.ndarray, node_log_likelihood=np.ndarray, node_gradients=np.ndarray, root_log_likelihoods=np.ndarray, all_log_likelihoods=np.ndarray, all_gradients=np.ndarray) # type: ignore[no-redef]
-def molina_em_update(node: ISumNode, data: np.ndarray = None, node_log_likelihood: np.ndarray = None, node_gradients: np.ndarray = None, root_log_likelihoods: np.ndarray = None, all_log_likelihoods: np.ndarray = None, all_gradients: np.ndarray = None) -> None:
+def poon_domingos_em_update(node: ISumNode, data: np.ndarray, node_log_likelihood: np.ndarray = None, node_gradients: np.ndarray = None, root_log_likelihoods: np.ndarray = None, all_log_likelihoods: np.ndarray = None, all_gradients: np.ndarray = None) -> None:
     root_inverse_gradient = node_gradients - root_log_likelihoods
 
     for i, child in enumerate(node.children):
@@ -47,17 +47,21 @@ def molina_em_update(node: ISumNode, data: np.ndarray = None, node_log_likelihoo
 
     assert not np.any(np.isnan(node.weights))
     
-    node.weights = np.exp(node.weights - logsumexp(node.weights) + np.exp(-100))
+    node.weights = np.exp(node.weights - logsumexp(node.weights)) + np.exp(-100)
     node.weights = node.weights / np.sum(node.weights)
+    assert not np.any(np.isnan(node.weights))
+    assert np.isclose(np.sum(node.weights), 1)
+    assert not np.any(node.weights < 0)
+    assert node.weights.sum() <= 1, "sum: {}, node weights: {}".format(node.weights.sum(), node.weights)
 
 
 @dispatch(IProductNode, data=np.ndarray, node_log_likelihood=np.ndarray, node_gradients=np.ndarray, root_log_likelihoods=np.ndarray, all_log_likelihoods=np.ndarray, all_gradients=np.ndarray) # type: ignore[no-redef]
-def molina_em_update(node: IProductNode, data: np.ndarray = None, node_log_likelihood: np.ndarray = None, node_gradients: np.ndarray = None, root_log_likelihoods: np.ndarray = None, all_log_likelihoods: np.ndarray = None, all_gradients: np.ndarray = None) -> None:
+def poon_domingos_em_update(node: IProductNode, data: np.ndarray, node_log_likelihood: np.ndarray = None, node_gradients: np.ndarray = None, root_log_likelihoods: np.ndarray = None, all_log_likelihoods: np.ndarray = None, all_gradients: np.ndarray = None) -> None:
     pass
 
 
 @dispatch(Gaussian, data=np.ndarray, node_log_likelihood=np.ndarray, node_gradients=np.ndarray, root_log_likelihoods=np.ndarray, all_log_likelihoods=np.ndarray, all_gradients=np.ndarray) # type: ignore[no-redef]
-def molina_em_update(node: Gaussian, data: np.ndarray = None, node_log_likelihood: np.ndarray = None, node_gradients: np.ndarray = None, root_log_likelihoods: np.ndarray = None, all_log_likelihoods: np.ndarray = None, all_gradients: np.ndarray = None) -> None:
+def poon_domingos_em_update(node: Gaussian, data: np.ndarray, node_log_likelihood: np.ndarray = None, node_gradients: np.ndarray = None, root_log_likelihoods: np.ndarray = None, all_log_likelihoods: np.ndarray = None, all_gradients: np.ndarray = None) -> None:
     X = data[:, node.scope]
     p = (node_gradients - root_log_likelihoods) + node_log_likelihood
     lse = logsumexp(p)
@@ -69,7 +73,7 @@ def molina_em_update(node: Gaussian, data: np.ndarray = None, node_log_likelihoo
 
 
 @dispatch(Bernoulli, data=np.ndarray, node_log_likelihood=np.ndarray, node_gradients=np.ndarray, root_log_likelihoods=np.ndarray, all_log_likelihoods=np.ndarray, all_gradients=np.ndarray) # type: ignore[no-redef]
-def molina_em_update(node: Bernoulli, data: np.ndarray = None, node_log_likelihood: np.ndarray = None, node_gradients: np.ndarray = None, root_log_likelihoods: np.ndarray = None, all_log_likelihoods: np.ndarray = None, all_gradients: np.ndarray = None) -> None:
+def poon_domingos_em_update(node: Bernoulli, data: np.ndarray, node_log_likelihood: np.ndarray = None, node_gradients: np.ndarray = None, root_log_likelihoods: np.ndarray = None, all_log_likelihoods: np.ndarray = None, all_gradients: np.ndarray = None) -> None:
     X = data[:, node.scope]
     p = (node_gradients - root_log_likelihoods) + node_log_likelihood
     lse = logsumexp(p)
@@ -81,7 +85,8 @@ def molina_em_update(node: Bernoulli, data: np.ndarray = None, node_log_likeliho
     node.set_params(p)
 
 
-def molina_em(spn: INode, data: np.ndarray, iterations: int = 10, hard_em: bool = False) -> None:
+def poon_domingos_em(spn: INode, data: np.ndarray, iterations: int = 10, hard_em: bool = False) -> None:
+    ll_pre = np.sum(log_likelihood(SPN(), spn, data))
     node_log_likelihoods = np.zeros((data.shape[0], np.sum(_get_node_counts(spn))))
     set_node_ids(spn)
 
@@ -96,22 +101,24 @@ def molina_em(spn: INode, data: np.ndarray, iterations: int = 10, hard_em: bool 
 
         for node in get_topological_order(spn):
             # TODO: use Dict[type, Callable] solution instead of dispatching (yields more flexiblity on this case)
-            molina_em_update(node, data=data, node_log_likelihood=node_log_likelihoods[:, node.id], node_gradients=gradients[:, node.id], root_log_likelihoods=root_log_likelihoods, all_log_likelihoods=node_log_likelihoods, all_gradients=gradients)
+            poon_domingos_em_update(node, data=data, node_log_likelihood=node_log_likelihoods[:, node.id], node_gradients=gradients[:, node.id], root_log_likelihoods=root_log_likelihoods, all_log_likelihoods=node_log_likelihoods, all_gradients=gradients)
+
+    ll_post = np.sum(log_likelihood(SPN(), spn, data))
+    print(f"log-L before EM: {ll_pre}")
+    print(f"log-L after  EM: {ll_post}")
 
 
-
-def local_em(node: INode, data: np.ndarray, iterations: int = 10, hard_em: bool = False) -> None:
+def local_em(spn: INode, data: np.ndarray, iterations: int = 10, hard_em: bool = False) -> None:
     # note: this does not work in SPNs, as we work at nodes locally, but have only global data, and do not know the assignment of instances to sub-SPNs
-    ll_pre = np.sum(log_likelihood(SPN(), node, data))
+    ll_pre = np.sum(log_likelihood(SPN(), spn, data))
 
     # TODO: use toplogical order to pass through node via bottom up, ignore leafs
-    nodes = get_topological_order(node)
-    for n in nodes:
-        if isinstance(n, ILeafNode):
+    for node in get_topological_order(spn):
+        if isinstance(node, ILeafNode):
             continue
-        local_em_update(n, data, iterations, hard_em)
+        local_em_update(node, data, iterations, hard_em)
 
-    ll_post = np.sum(log_likelihood(SPN(), node, data))
+    ll_post = np.sum(log_likelihood(SPN(), spn, data))
     print(f"log-L before EM: {ll_pre}")
     print(f"log-L after  EM: {ll_post}")
 
@@ -220,10 +227,10 @@ if __name__ == "__main__":
         scope=[0, 1],
         weights=np.array([0.1, 0.9]),
     )
-    top_ord = get_topological_order(spn)
-    print(top_ord)
+    #top_ord = get_topological_order(spn)
+    #print(top_ord)
     #local_em(spn, data, iterations=1, hard_em=True)
-    molina_em(spn, data, iterations=100)
+    poon_domingos_em(spn, data, iterations=100)
     _print_node_graph(spn)
     print(spn.weights)
 
@@ -233,10 +240,10 @@ if __name__ == "__main__":
             ISumNode(children=[Gaussian([0], -2.0, 5.0), Bernoulli([1], 0.3)], scope=[0, 1], weights=np.array([0.1, 0.9])),
             ISumNode(children=[Gaussian([0],  4.5, 2.0), Bernoulli([1], 0.8)], scope=[0, 1], weights=np.array([0.1, 0.9]))],
         scope=[0, 1])
-    top_ord = get_topological_order(spn2)
-    print(top_ord)
+    #top_ord = get_topological_order(spn2)
+    #print(top_ord)
     #local_em(spn2, data, iterations=1, hard_em=False)
-    molina_em(spn2, data, iterations=100)
+    poon_domingos_em(spn2, data, iterations=100)
     _print_node_graph(spn)
     print(spn.weights)
 

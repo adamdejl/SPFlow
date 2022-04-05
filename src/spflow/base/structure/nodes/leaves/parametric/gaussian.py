@@ -121,7 +121,9 @@ def get_log_partition_param(node: Gaussian) -> float:
 
 
 @dispatch(Gaussian, np.ndarray, np.ndarray)  # type: ignore[no-redef]
-def update_parameters_em(node: Gaussian, data: np.ndarray, responsibilities: np.ndarray, hard_em: bool) -> None:
+def update_parameters_em(
+    node: Gaussian, data: np.ndarray, responsibilities: np.ndarray, hard_em: bool
+) -> None:
     responsilbility_factor = 1 / np.sum(responsibilities)
     mean = responsilbility_factor * (responsibilities.T @ data[:, node.scope])
     diff = data[:, node.scope] - mean

@@ -208,8 +208,10 @@ def validate_data(
     if data.shape[0] == 0 or data.shape[1] != expected_dimensions:
         raise ValueError(f"Argument 'data' must have shape of form (>0, {expected_dimensions}).")
     if np.any(np.isnan(data)):
-        print("Warning: Argument 'data' contains NaN values that are removed")
-        if remove_nan:
+        if remove_nan:  #
+            print("Warning: Removing NaN values in 'data'")
             data = data[~np.isnan(data)]
+        else:
+            print("Warning: Argument 'data' contains NaN values")
 
     return data

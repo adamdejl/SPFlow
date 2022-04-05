@@ -69,7 +69,9 @@ def get_scipy_object_parameters(node: Bernoulli) -> Dict[str, float]:
 
 
 @dispatch(Bernoulli, np.ndarray, np.ndarray)  # type: ignore[no-redef]
-def update_parameters_em(node: Bernoulli, data: np.ndarray, responsibilities: np.ndarray, hard_em: bool) -> None:
+def update_parameters_em(
+    node: Bernoulli, data: np.ndarray, responsibilities: np.ndarray, hard_em: bool
+) -> None:
     if hard_em:
         responsilbility_factor = 1 / len(responsibilities)
     else:

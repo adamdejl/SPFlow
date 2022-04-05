@@ -63,7 +63,7 @@ def global_em_update(node: ISumNode, data: np.ndarray):
     children_lls = np.empty(shape=(data.shape[0], len(node.children)))
     for i, child in enumerate(node.children):
         children_lls[:, i] = log_likelihood(SPN(), child, data).reshape(
-            (10,)
+            (data.shape[0],)
         )  # + np.log(node.weights[i])
         # TODO: do the weights of the children have to be taken into account?
         # I think yes, BUT: if a cluster has very low probability, it may not get assigned any instances. This can lead to degenerate solutions.

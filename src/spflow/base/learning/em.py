@@ -79,11 +79,13 @@ def global_em_update(node: ISumNode, data: np.ndarray) -> None:
 
     Each data point is assigned to the child of the SumNode at which it has its maximum log-likelihood computed. This is done in a 
     hard-EM/deterministic fashion. Then, the weights of each child are recomputed as the size ratio of the assigned data points.
-    Note: Usually, in EM theory, the weights of mixture models are taken into account while computing the assignments of data points. However,
-    children whose weights are initially low tend to be assigned no data points, leading to degenerate solutions. Therefore, during the
-    assignment, the occurence of data points w.r.t. each child is assumed to be distributed uniformly.
-    The assignment is part of the Expectation-Step, recomputing the weights part of the Maximization-Step. This does not contradict the traditional
-    EM procedure, as the M-step is carried out after the E-step and is not taken into account during the same iteration.
+
+    Note: Usually, in EM theory, the weights of mixture models are taken into account while computing the assignments of data points. 
+    However, children whose weights are initially low tend to be assigned no data points, leading to degenerate solutions (similar to 
+    the vanishing gradients effect). Therefore, during the assignment, the occurence of data points w.r.t. each child is assumed to 
+    be distributed uniformly.
+    The assignment is part of the Expectation-Step, recomputing the weights is part of the Maximization-Step. This does not contradict 
+    the EM procedure, as we're proceeding top-down and the M-step is not taken into account of the E-step of the same iteration.
 
     Arguments:
         node:
@@ -98,7 +100,7 @@ def global_em_update(node: ISumNode, data: np.ndarray) -> None:
         )  # + np.log(node.weights[i])
         # TODO: do the weights of the children have to be taken into account?
         # I think yes, BUT: if a cluster has very low probability, it may not get assigned any instances. This can lead to degenerate solutions.
-        # If weights are consideren ( + np.log(node.weights[i]) ), then passing data of size 0 has to be handled
+        # If weights are considered ( + np.log(node.weights[i]) ), then passing data of size 0 has to be handled 
     children_assignments = np.argmax(children_lls, axis=1)
     children_data = [data[children_assignments[:] == k, :] for k in range(len(node.children))]
 

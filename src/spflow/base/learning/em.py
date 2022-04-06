@@ -35,6 +35,21 @@ from spflow.base.structure.nodes.validity_checks import _isvalid_spn
 
 
 def global_em(spn: INode, data: np.ndarray, iterations: int = 10, hard_em: bool = True) -> None:
+    """Optimize the parameteres of a given SPN w.r.t. data using an Expectation-Maximization algorithm.
+
+    In a downward pass, the entries in data are assigned to nodes in the SPN. At sum nodes, each data point is assigned to the child
+    at which its maximum log-likelihood is computed. Ar product nodes, data is split according to the scope of the node. This is
+    a hard-EM procedure, making each cluster deterministic. Eventually each leaf computes the Maximum-Likelihood Estimation of its
+    assigned data points
+
+    Arguments:
+        spn: 
+            The root node of the SPN to be optimized.
+        data: 
+            The (2D) data used to optimize the parameters of the spn.
+        iterations: 
+            Number of iterations of the procedure.
+    """
     if not hard_em:
         raise NotImplementedError(
             "currently, the global EM procedure is only implemented in hard EM fashion"
@@ -43,11 +58,8 @@ def global_em(spn: INode, data: np.ndarray, iterations: int = 10, hard_em: bool 
     ll_pre = np.sum(log_likelihood(SPN(), spn, data))
 
     # TODO: possible optimization: compute all LLs of all nodes in one log-likelihood() pass, execute E-step and M-step with get_topological_order()
-
     for i in range(iterations):
-        # global E-step (assignment)
         global_em_update(spn, data)
-        # M-step with assignments: done in the em_updates. TODO: implement kwargs to toggle updates
 
     ll_post = np.sum(log_likelihood(SPN(), spn, data))
     print(f"log-L before EM: {ll_pre}")
@@ -55,11 +67,23 @@ def global_em(spn: INode, data: np.ndarray, iterations: int = 10, hard_em: bool 
 
 
 @dispatch(ISumNode, np.ndarray)  # type: ignore[no-redef]
-def global_em_update(node: ISumNode, data: np.ndarray):
-    # SumNodes:
-    # - compute LL of each entry in data for each child
-    # - split the data w.r.t. highest LL and assign to the respective child
-    # (- recompute the weights of the SumNode as proportional size of the split data clusters [this is M-step])
+def global_em_update(node: ISumNode, data: np.ndarray) -> None:
+    """Split the data at the given node according to the log-likelihood of the data points.
+
+    Each data point is assigned to the child of the SumNode at which it has its maximum log-likelihood computed. This is done in a 
+    hard-EM/deterministic fashion. Then, the weights of each child are recomputed as the size ratio of the assigned data points.
+    Note: Usually, in EM theory, the weights of mixture models are taken into account while computing the assignments of data points. However,
+    children whose weights are initially low tend to be assigned no data points, leading to degenerate solutions. Therefore, during the
+    assignment, the occurence of data points w.r.t. each child is assumed to be distributed uniformly.
+    The assignment is part of the Expectation-Step, recomputing the weights part of the Maximization-Step. This does not contradict the traditional
+    EM procedure, as the M-step is carried out after the E-step and is not taken into account during the same iteration.
+
+    Arguments:
+        node:
+            The sum node to be optimized.
+        data:
+            The data points to be assigned to the children of node.
+    """
     children_lls = np.empty(shape=(data.shape[0], len(node.children)))
     for i, child in enumerate(node.children):
         children_lls[:, i] = log_likelihood(SPN(), child, data).reshape(
@@ -69,10 +93,8 @@ def global_em_update(node: ISumNode, data: np.ndarray):
         # I think yes, BUT: if a cluster has very low probability, it may not get assigned any instances. This can lead to degenerate solutions.
         # If weights are consideren ( + np.log(node.weights[i]) ), then passing data of size 0 has to be handled
     children_assignments = np.argmax(children_lls, axis=1)
-    # cluster_data = np.concatenate((data, cluster_index), axis=1)
     children_data = [data[children_assignments[:] == k, :] for k in range(len(node.children))]
 
-    # also update weights of SumNode? (= size ratio of new clusters)
     new_cluster_sizes = np.array([len(cluster) for cluster in children_data])
     node.weights = new_cluster_sizes / np.sum(new_cluster_sizes)
 
@@ -81,144 +103,55 @@ def global_em_update(node: ISumNode, data: np.ndarray):
 
 
 @dispatch(IProductNode, np.ndarray) # type: ignore[no-redef]
-def global_em_update(node: IProductNode, data: np.ndarray):
-    # ProductNodes:
-    # - split data by scope
+def global_em_update(node: IProductNode, data: np.ndarray) -> None:
+    """Split the data according to the node's children's scope
+    
+    Children of product nodes have distinct scopes, hence split the data (columns) according to the scope of the node's children.
+    This is part of the Expectation-Step.
+    
+    Arguments:
+        node:
+            The product node.
+        data:
+            The data to be assigned to the node's children.
+    """
     for child in node.children:
         global_em_update(child, data[:, child.scope])
 
 
 @dispatch(ILeafNode, np.ndarray) # type: ignore[no-redef]
-def global_em_update(node: ILeafNode, data: np.ndarray):
+def global_em_update(node: ILeafNode, data: np.ndarray) -> None:
+    """Compute the MLE of the leaf node given it's assignments.
+
+    Each leaf node receives a subset of data with its own scope that it is most likely to have produced. A Maximum-Likelihood
+    Estimation is carried out on the leaf's assigned data points.
+    This is part of the Maximization-Step.
+
+    Arguments:
+        node:
+            The leaf node which parameters are to be optimized.
+        data:
+            The assignments to the leaf node used for the optimization.
+    """
     maximum_likelihood_estimation(node, data)
 
 
-@dispatch(ISumNode, data=np.ndarray, node_log_likelihood=np.ndarray, node_gradients=np.ndarray, root_log_likelihoods=np.ndarray, all_log_likelihoods=np.ndarray, all_gradients=np.ndarray)  # type: ignore[no-redef]
-def poon_domingos_em_update(
-    node: ISumNode,
-    data: np.ndarray,
-    node_log_likelihood: np.ndarray = None,
-    node_gradients: np.ndarray = None,
-    root_log_likelihoods: np.ndarray = None,
-    all_log_likelihoods: np.ndarray = None,
-    all_gradients: np.ndarray = None,
-) -> None:
-    root_inverse_gradient = node_gradients - root_log_likelihoods
 
-    for i, child in enumerate(node.children):
-        new_weight = root_inverse_gradient + (
-            all_log_likelihoods[:, child.id] + np.log(node.weights[i])
-        )
-        node.weights[i] = logsumexp(new_weight)
-
-    assert not np.any(np.isnan(node.weights))
-
-    node.weights = np.exp(node.weights - logsumexp(node.weights)) + np.exp(-100)
-    node.weights = node.weights / np.sum(node.weights)
-    assert not np.any(np.isnan(node.weights))
-    assert np.isclose(np.sum(node.weights), 1)
-    assert not np.any(node.weights < 0)
-    assert node.weights.sum() <= 1, "sum: {}, node weights: {}".format(
-        node.weights.sum(), node.weights
-    )
-
-
-@dispatch(IProductNode, data=np.ndarray, node_log_likelihood=np.ndarray, node_gradients=np.ndarray, root_log_likelihoods=np.ndarray, all_log_likelihoods=np.ndarray, all_gradients=np.ndarray)  # type: ignore[no-redef]
-def poon_domingos_em_update(
-    node: IProductNode,
-    data: np.ndarray,
-    node_log_likelihood: np.ndarray = None,
-    node_gradients: np.ndarray = None,
-    root_log_likelihoods: np.ndarray = None,
-    all_log_likelihoods: np.ndarray = None,
-    all_gradients: np.ndarray = None,
-) -> None:
-    pass
-
-
-@dispatch(Gaussian, data=np.ndarray, node_log_likelihood=np.ndarray, node_gradients=np.ndarray, root_log_likelihoods=np.ndarray, all_log_likelihoods=np.ndarray, all_gradients=np.ndarray)  # type: ignore[no-redef]
-def poon_domingos_em_update(
-    node: Gaussian,
-    data: np.ndarray,
-    node_log_likelihood: np.ndarray = None,
-    node_gradients: np.ndarray = None,
-    root_log_likelihoods: np.ndarray = None,
-    all_log_likelihoods: np.ndarray = None,
-    all_gradients: np.ndarray = None,
-) -> None:
-    X = data[:, node.scope]
-    p = (node_gradients - root_log_likelihoods) + node_log_likelihood
-    lse = logsumexp(p)
-    w = np.exp(p - lse)
-
-    mean = np.sum(w * X)
-    stdev = np.sqrt(np.sum(w * np.power(X - mean, 2)))
-    node.set_params(mean, stdev)
-
-
-@dispatch(Bernoulli, data=np.ndarray, node_log_likelihood=np.ndarray, node_gradients=np.ndarray, root_log_likelihoods=np.ndarray, all_log_likelihoods=np.ndarray, all_gradients=np.ndarray)  # type: ignore[no-redef]
-def poon_domingos_em_update(
-    node: Bernoulli,
-    data: np.ndarray,
-    node_log_likelihood: np.ndarray = None,
-    node_gradients: np.ndarray = None,
-    root_log_likelihoods: np.ndarray = None,
-    all_log_likelihoods: np.ndarray = None,
-    all_gradients: np.ndarray = None,
-) -> None:
-    X = data[:, node.scope]
-    p = (node_gradients - root_log_likelihoods) + node_log_likelihood
-    lse = logsumexp(p)
-    wl = p - lse
-    paramlse = np.exp(logsumexp(wl, b=X))
-
-    assert not np.isnan(paramlse)
-    p = min(max(paramlse, 0), 1)
-    node.set_params(p)
-
-
-def poon_domingos_em(
-    spn: INode, data: np.ndarray, iterations: int = 10, hard_em: bool = False
-) -> None:
-    ll_pre = np.sum(log_likelihood(SPN(), spn, data))
-    node_log_likelihoods = np.zeros((data.shape[0], np.sum(_get_node_counts(spn))))
-    set_node_ids(spn)
-
-    for i in range(iterations):
-        results = log_likelihood(SPN(), spn, data, return_all_results=True)
-
-        for node, ll in results.items():
-            node_log_likelihoods[:, node.id] = ll[:, 0]
-
-        gradients = gradient_backward(spn, node_log_likelihoods)
-        root_log_likelihoods = node_log_likelihoods[:, 0]
-
-        for node in get_topological_order(spn):
-            # TODO: use Dict[type, Callable] solution instead of dispatching (yields more flexiblity on this case)
-            poon_domingos_em_update(
-                node,
-                data=data,
-                node_log_likelihood=node_log_likelihoods[:, node.id],
-                node_gradients=gradients[:, node.id],
-                root_log_likelihoods=root_log_likelihoods,
-                all_log_likelihoods=node_log_likelihoods,
-                all_gradients=gradients,
-            )
-
-    ll_post = np.sum(log_likelihood(SPN(), spn, data))
-    print(f"log-L before EM: {ll_pre}")
-    print(f"log-L after  EM: {ll_post}")
-
-
-def local_em(spn: INode, data: np.ndarray, iterations: int = 10, hard_em: bool = False) -> None:
-    # note: this does not work in SPNs, as we work at nodes locally, but have only global data, and do not know the assignment of instances to sub-SPNs
+def __local_em(spn: INode, data: np.ndarray, iterations: int = 10, hard_em: bool = False) -> None:
+    """ This is the EM procedure for mixture models, derived from the algorithm in Bishop's Pattern Recognition and Machine Learning.
+    This algorithm does not work for SPN as depicted. Opposed to traditional mixture models, SPN's are multi-level hierarchical models. 
+    Data points in SPNs are not simply assigned to clusters as a whole, but split into smaller parts represented by nodes located deeper
+    within the SPN. This introduces challenges in the EM algorithm, at is is not clear which node is responsible for which data.
+    First tests led to degenerate solutions, where all leafs converged to the same parameters, resembling a Maximum-Likelihood Estimation
+    over the complete data. Refer to "global_em()" for a working version in hard-EM fashion.
+    """
     ll_pre = np.sum(log_likelihood(SPN(), spn, data))
 
     # TODO: use toplogical order to pass through node via bottom up, ignore leafs
     for node in get_topological_order(spn):
         if isinstance(node, ILeafNode):
             continue
-        local_em_update(node, data, iterations, hard_em)
+        __local_em_update(node, data, iterations, hard_em)
 
     ll_post = np.sum(log_likelihood(SPN(), spn, data))
     print(f"log-L before EM: {ll_pre}")
@@ -226,9 +159,10 @@ def local_em(spn: INode, data: np.ndarray, iterations: int = 10, hard_em: bool =
 
 
 @dispatch(ISumNode, np.ndarray, int, bool)  # type: ignore[no-redef]
-def local_em_update(
+def __local_em_update(
     node: ISumNode, data: np.ndarray, iterations: int, hard_em: bool
 ) -> None:  # DICTIONARY SOLUTION: node_updates: dict[INode, Callable],
+    """See "__local_em()" """
     assert len(node.children) == len(node.weights)
     node_data = np.empty(data.shape)
     node_data[:] = np.NaN
@@ -236,7 +170,7 @@ def local_em_update(
 
     for i in range(iterations):
         # E-step
-        datapoint_responsibilities = compute_responsibilities(node, node_data, hard_em)
+        datapoint_responsibilities = __compute_responsibilities(node, node_data, hard_em)
         cluster_responsibilities = np.sum(datapoint_responsibilities, axis=0)
         # M-step
         # here implemented: dispatch solution
@@ -249,7 +183,8 @@ def local_em_update(
 
 
 @dispatch(IProductNode, np.ndarray, int, bool)  # type: ignore[no-redef]
-def local_em_update(node: IProductNode, data: np.ndarray, iterations: int, hard_em: bool) -> None:
+def __local_em_update(node: IProductNode, data: np.ndarray, iterations: int, hard_em: bool) -> None:
+    """See "__local_em()" """
     for i in range(iterations):
         responsibilities = np.ones((len(data), 1))
 
@@ -258,7 +193,8 @@ def local_em_update(node: IProductNode, data: np.ndarray, iterations: int, hard_
                 update_parameters_em(child_node, data, responsibilities)
 
 
-def compute_responsibilities(node: ISumNode, data: np.ndarray, hard_em: bool) -> np.ndarray:
+def __compute_responsibilities(node: ISumNode, data: np.ndarray, hard_em: bool) -> np.ndarray:
+    """See "__local_em()" """
     prior_cluster_probs = node.weights
 
     # dirty prototype
@@ -285,6 +221,133 @@ def compute_responsibilities(node: ISumNode, data: np.ndarray, hard_em: bool) ->
         )
 
     return datapoint_responsibilities
+
+
+
+def __poon_domingos_em(
+    spn: INode, data: np.ndarray, iterations: int = 10, hard_em: bool = False
+) -> None:
+    """This is the EM algorithm of the original SPFlow, implemented according to the procedure described by Poon and Domingos in their paper introducing SPNs.
+    First tests showed that this algorithm does not lead to optimization of the parameters. In some cases, it worsens the log-likelihood of the SPN.
+    Still need to investigate if this is an error in the procedure or the implementation. 
+    So far, refer to "global_em()", a working EM procedure with hard assignments. """
+    ll_pre = np.sum(log_likelihood(SPN(), spn, data))
+    node_log_likelihoods = np.zeros((data.shape[0], np.sum(_get_node_counts(spn))))
+    set_node_ids(spn)
+
+    for i in range(iterations):
+        results = log_likelihood(SPN(), spn, data, return_all_results=True)
+
+        for node, ll in results.items():
+            node_log_likelihoods[:, node.id] = ll[:, 0]
+
+        gradients = gradient_backward(spn, node_log_likelihoods)
+        root_log_likelihoods = node_log_likelihoods[:, 0]
+
+        for node in get_topological_order(spn):
+            # TODO: use Dict[type, Callable] solution instead of dispatching (yields more flexiblity on this case)
+            __poon_domingos_em_update(
+                node,
+                data=data,
+                node_log_likelihood=node_log_likelihoods[:, node.id],
+                node_gradients=gradients[:, node.id],
+                root_log_likelihoods=root_log_likelihoods,
+                all_log_likelihoods=node_log_likelihoods,
+                all_gradients=gradients,
+            )
+
+    ll_post = np.sum(log_likelihood(SPN(), spn, data))
+    print(f"log-L before EM: {ll_pre}")
+    print(f"log-L after  EM: {ll_post}")
+
+
+@dispatch(ISumNode, data=np.ndarray, node_log_likelihood=np.ndarray, node_gradients=np.ndarray, root_log_likelihoods=np.ndarray, all_log_likelihoods=np.ndarray, all_gradients=np.ndarray)  # type: ignore[no-redef]
+def __poon_domingos_em_update(
+    node: ISumNode,
+    data: np.ndarray,
+    node_log_likelihood: np.ndarray = None,
+    node_gradients: np.ndarray = None,
+    root_log_likelihoods: np.ndarray = None,
+    all_log_likelihoods: np.ndarray = None,
+    all_gradients: np.ndarray = None,
+) -> None:
+    """See "__poon_domingos_em()" """
+    root_inverse_gradient = node_gradients - root_log_likelihoods
+
+    for i, child in enumerate(node.children):
+        new_weight = root_inverse_gradient + (
+            all_log_likelihoods[:, child.id] + np.log(node.weights[i])
+        )
+        node.weights[i] = logsumexp(new_weight)
+
+    assert not np.any(np.isnan(node.weights))
+
+    node.weights = np.exp(node.weights - logsumexp(node.weights)) + np.exp(-100)
+    node.weights = node.weights / np.sum(node.weights)
+    assert not np.any(np.isnan(node.weights))
+    assert np.isclose(np.sum(node.weights), 1)
+    assert not np.any(node.weights < 0)
+    assert node.weights.sum() <= 1, "sum: {}, node weights: {}".format(
+        node.weights.sum(), node.weights
+    )
+
+
+@dispatch(IProductNode, data=np.ndarray, node_log_likelihood=np.ndarray, node_gradients=np.ndarray, root_log_likelihoods=np.ndarray, all_log_likelihoods=np.ndarray, all_gradients=np.ndarray)  # type: ignore[no-redef]
+def __poon_domingos_em_update(
+    node: IProductNode,
+    data: np.ndarray,
+    node_log_likelihood: np.ndarray = None,
+    node_gradients: np.ndarray = None,
+    root_log_likelihoods: np.ndarray = None,
+    all_log_likelihoods: np.ndarray = None,
+    all_gradients: np.ndarray = None,
+) -> None:
+    """See "__poon_domingos_em()" """
+    pass
+
+
+@dispatch(Gaussian, data=np.ndarray, node_log_likelihood=np.ndarray, node_gradients=np.ndarray, root_log_likelihoods=np.ndarray, all_log_likelihoods=np.ndarray, all_gradients=np.ndarray)  # type: ignore[no-redef]
+def __poon_domingos_em_update(
+    node: Gaussian,
+    data: np.ndarray,
+    node_log_likelihood: np.ndarray = None,
+    node_gradients: np.ndarray = None,
+    root_log_likelihoods: np.ndarray = None,
+    all_log_likelihoods: np.ndarray = None,
+    all_gradients: np.ndarray = None,
+) -> None:
+    """See "__poon_domingos_em()" """
+    X = data[:, node.scope]
+    p = (node_gradients - root_log_likelihoods) + node_log_likelihood
+    lse = logsumexp(p)
+    w = np.exp(p - lse)
+
+    mean = np.sum(w * X)
+    stdev = np.sqrt(np.sum(w * np.power(X - mean, 2)))
+    node.set_params(mean, stdev)
+
+
+@dispatch(Bernoulli, data=np.ndarray, node_log_likelihood=np.ndarray, node_gradients=np.ndarray, root_log_likelihoods=np.ndarray, all_log_likelihoods=np.ndarray, all_gradients=np.ndarray)  # type: ignore[no-redef]
+def __poon_domingos_em_update(
+    node: Bernoulli,
+    data: np.ndarray,
+    node_log_likelihood: np.ndarray = None,
+    node_gradients: np.ndarray = None,
+    root_log_likelihoods: np.ndarray = None,
+    all_log_likelihoods: np.ndarray = None,
+    all_gradients: np.ndarray = None,
+) -> None:
+    """See "__poon_domingos_em()" """
+    X = data[:, node.scope]
+    p = (node_gradients - root_log_likelihoods) + node_log_likelihood
+    lse = logsumexp(p)
+    wl = p - lse
+    paramlse = np.exp(logsumexp(wl, b=X))
+
+    assert not np.isnan(paramlse)
+    p = min(max(paramlse, 0), 1)
+    node.set_params(p)
+
 
 
 def compute_exponential_family_pdf(node: INode, X: np.ndarray) -> float:

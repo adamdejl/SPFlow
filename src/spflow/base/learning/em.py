@@ -1,6 +1,7 @@
-from typing import Callable
+from typing import Callable, Tuple
 import numpy as np  # type: ignore
 from scipy.special import logsumexp  # type: ignore
+from time import time
 from multipledispatch import dispatch  # type: ignore
 from spflow.base.inference.nodes.node import log_likelihood
 from spflow.base.learning.gradient import gradient_backward
@@ -34,7 +35,7 @@ from spflow.base.structure.nodes.node import (
 from spflow.base.structure.nodes.validity_checks import _isvalid_spn
 
 
-def global_em(spn: INode, data: np.ndarray, iterations: int = 10, hard_em: bool = True) -> None:
+def global_em(spn: INode, data: np.ndarray, iterations: int = 10, hard_em: bool = True) -> Tuple[float, float, float]:
     """Optimize the parameteres of a given SPN w.r.t. data using an Expectation-Maximization algorithm.
 
     In a downward pass, the entries in data are assigned to nodes in the SPN. At sum nodes, each data point is assigned to the child
@@ -49,21 +50,27 @@ def global_em(spn: INode, data: np.ndarray, iterations: int = 10, hard_em: bool 
             The (2D) data used to optimize the parameters of the spn.
         iterations: 
             Number of iterations of the procedure.
+
+    Returns:
+        Tuple of computatation time, log-likelihood after the optimization, and log-likelihood before the optimization.
     """
     if not hard_em:
         raise NotImplementedError(
             "currently, the global EM procedure is only implemented in hard EM fashion"
         )
 
+    _isvalid_spn(spn)
     ll_pre = np.sum(log_likelihood(SPN(), spn, data))
+    start_time = time()
 
     # TODO: possible optimization: compute all LLs of all nodes in one log-likelihood() pass, execute E-step and M-step with get_topological_order()
     for i in range(iterations):
         global_em_update(spn, data)
 
+    computation_time = start_time - time()
     ll_post = np.sum(log_likelihood(SPN(), spn, data))
-    print(f"log-L before EM: {ll_pre}")
-    print(f"log-L after  EM: {ll_post}")
+
+    return (computation_time, ll_post, ll_pre)
 
 
 @dispatch(ISumNode, np.ndarray)  # type: ignore[no-redef]
@@ -137,7 +144,7 @@ def global_em_update(node: ILeafNode, data: np.ndarray) -> None:
 
 
 
-def __local_em(spn: INode, data: np.ndarray, iterations: int = 10, hard_em: bool = False) -> None:
+def __local_em(spn: INode, data: np.ndarray, iterations: int = 10, hard_em: bool = False) ->  Tuple[float, float, float]:
     """ This is the EM procedure for mixture models, derived from the algorithm in Bishop's Pattern Recognition and Machine Learning.
     This algorithm does not work for SPN as depicted. Opposed to traditional mixture models, SPN's are multi-level hierarchical models. 
     Data points in SPNs are not simply assigned to clusters as a whole, but split into smaller parts represented by nodes located deeper
@@ -145,7 +152,9 @@ def __local_em(spn: INode, data: np.ndarray, iterations: int = 10, hard_em: bool
     First tests led to degenerate solutions, where all leafs converged to the same parameters, resembling a Maximum-Likelihood Estimation
     over the complete data. Refer to "global_em()" for a working version in hard-EM fashion.
     """
+    _isvalid_spn(spn)
     ll_pre = np.sum(log_likelihood(SPN(), spn, data))
+    start_time = time()
 
     # TODO: use toplogical order to pass through node via bottom up, ignore leafs
     for node in get_topological_order(spn):
@@ -153,9 +162,10 @@ def __local_em(spn: INode, data: np.ndarray, iterations: int = 10, hard_em: bool
             continue
         __local_em_update(node, data, iterations, hard_em)
 
+    computation_time = start_time - time()
     ll_post = np.sum(log_likelihood(SPN(), spn, data))
-    print(f"log-L before EM: {ll_pre}")
-    print(f"log-L after  EM: {ll_post}")
+
+    return (computation_time, ll_post, ll_pre)
 
 
 @dispatch(ISumNode, np.ndarray, int, bool)  # type: ignore[no-redef]
@@ -226,12 +236,15 @@ def __compute_responsibilities(node: ISumNode, data: np.ndarray, hard_em: bool) 
 
 def __poon_domingos_em(
     spn: INode, data: np.ndarray, iterations: int = 10, hard_em: bool = False
-) -> None:
+) -> Tuple[float, float, float]:
     """This is the EM algorithm of the original SPFlow, implemented according to the procedure described by Poon and Domingos in their paper introducing SPNs.
     First tests showed that this algorithm does not lead to optimization of the parameters. In some cases, it worsens the log-likelihood of the SPN.
     Still need to investigate if this is an error in the procedure or the implementation. 
     So far, refer to "global_em()", a working EM procedure with hard assignments. """
+    _isvalid_spn(spn)
     ll_pre = np.sum(log_likelihood(SPN(), spn, data))
+    start_time = time()
+
     node_log_likelihoods = np.zeros((data.shape[0], np.sum(_get_node_counts(spn))))
     set_node_ids(spn)
 
@@ -256,9 +269,10 @@ def __poon_domingos_em(
                 all_gradients=gradients,
             )
 
+    computation_time = start_time - time()
     ll_post = np.sum(log_likelihood(SPN(), spn, data))
-    print(f"log-L before EM: {ll_pre}")
-    print(f"log-L after  EM: {ll_post}")
+
+    return (computation_time, ll_post, ll_pre)
 
 
 @dispatch(ISumNode, data=np.ndarray, node_log_likelihood=np.ndarray, node_gradients=np.ndarray, root_log_likelihoods=np.ndarray, all_log_likelihoods=np.ndarray, all_gradients=np.ndarray)  # type: ignore[no-redef]
@@ -402,11 +416,9 @@ def test_em(em_procedure: Callable) -> None:
         scope=[0, 1],
         weights=np.array([0.1, 0.9]),
     )
-    _isvalid_spn(spn)
-    # top_ord = get_topological_order(spn)
-    # print(top_ord)
-    # local_em(spn, data, iterations=1, hard_em=True)
-    em_procedure(spn, data, iterations=10)
+    time, ll_post, ll_pre = em_procedure(spn, data, iterations=10)
+    print(f"log-L before EM: {ll_pre}")
+    print(f"log-L after  EM: {ll_post}")
     _print_node_graph(spn)
     print(spn.weights)
 

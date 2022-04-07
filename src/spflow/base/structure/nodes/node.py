@@ -42,6 +42,38 @@ class INode:
     def __len__(self) -> int:
         return 1
 
+    def __rmul__(self, weight) -> "INode":
+        assert type(weight) == int or type(weight) == float
+        self._tmp_weight = weight
+        return self
+
+    def __add__(self, other: "INode") -> "ISumNode":
+        assert isinstance(other, INode)
+        assert hasattr(self, "_tmp_weight"), "right node has no weight"
+        assert hasattr(other, "_tmp_weight"), "left node has no weight"
+        assert len(self.scope) > 0, "left node has no scope"
+        assert len(other.scope) > 0, "right node has no scope"
+        assert set(self.scope) == set(other.scope)
+
+        from numpy import isclose
+
+        assert isclose(
+            1.0, np.sum((self._tmp_weight, other._tmp_weight))
+        ), "unnormalized weights, maybe trying to add many nodes at the same time?"
+
+        scope = self.scope
+        sum_node = ISumNode(children=[self, other], scope=scope, weights=np.array([self._tmp_weight, other._tmp_weight]))
+        return sum_node
+    
+    def __mul__(self, other: "INode") -> "IProductNode":
+        assert isinstance(other, INode)
+        assert len(self.scope) > 0, "left node has no scope"
+        assert len(other.scope) > 0, "right node has no scope"
+        assert len(set(self.scope).intersection(set(other.scope))) == 0, "children's scope is not disjoint"
+        product_node = IProductNode(children=[self, other], scope=list(set(self.scope).union(set(other.scope))))
+        return product_node
+
+
     def print_treelike(self, prefix: str = "") -> None:
         """
         Ad-hoc method to print structure of node and children (for debugging purposes).

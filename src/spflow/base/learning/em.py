@@ -82,8 +82,8 @@ def global_em_update(node: ISumNode, data: np.ndarray) -> None:
 
     Note: Usually, in EM theory, the weights of mixture models are taken into account while computing the assignments of data points. 
     However, children whose weights are initially low tend to be assigned no data points, leading to degenerate solutions (similar to 
-    the vanishing gradients effect). Therefore, during the assignment, the occurence of data points w.r.t. each child is assumed to 
-    be distributed uniformly.
+    the vanishing gradients effect). Therefore, during the assignment, the occurence of data points w.r.t. each child is currently 
+    assumed to be distributed uniformly.
     The assignment is part of the Expectation-Step, recomputing the weights is part of the Maximization-Step. This does not contradict 
     the EM procedure, as we're proceeding top-down and the M-step is not taken into account of the E-step of the same iteration.
 

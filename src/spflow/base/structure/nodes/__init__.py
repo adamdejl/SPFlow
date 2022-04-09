@@ -15,4 +15,6 @@ from .leaves.parametric import (
     Gamma,
     MetaType,
     ParametricType,
+    Categorical,
+    CategoricalDictionary,
 )

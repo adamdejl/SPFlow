@@ -28,7 +28,7 @@ class ParametricType(Enum):
 
     @property
     def meta_type(self) -> MetaType:
-        return self._meta_type
+        return self._meta_type  # type: ignore
 
 
 META_TYPE_MAP = {

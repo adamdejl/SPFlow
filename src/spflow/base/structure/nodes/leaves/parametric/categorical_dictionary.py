@@ -49,10 +49,10 @@ class CategoricalDictionary(ParametricLeaf):
             )
         if not np.isclose(np.sum(vals), 1.0):
             raise ValueError(
-                f"Values of p for Categorical distribution must sum up to 1, but were: {np.sum(p)}"
+                f"Values of p for Categorical distribution must sum up to 1, but were: {np.sum(p)}"  # type: ignore
             )
 
         self.p = p
 
-    def get_params(self) -> List[int]:
+    def get_params(self) -> Dict[int, float]:
         return self.p

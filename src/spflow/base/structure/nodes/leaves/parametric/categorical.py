@@ -23,7 +23,13 @@ class Categorical(ParametricLeaf):
 
     type = ParametricType.CATEGORICAL
 
-    def __init__(self, scope: List[int], p: Optional[List[float]] = None) -> None:
+    def __init__(
+        self,
+        scope: List[int],
+        p: Optional[List[float]] = None,
+        k: int = 0,
+        uniform: bool = False,
+    ) -> None:
         if len(scope) != 1:
             raise ValueError(
                 f"Scope size for {self.__class__.__name__} should be 1, but was: {len(scope)}"
@@ -32,26 +38,30 @@ class Categorical(ParametricLeaf):
         super().__init__(scope)
 
         if p is None:
-            k = np.random.randint(
-                3, 10
-            )  # sample at least 3 categories, less than 3 would be Bernoulli
-            p = np.random.uniform(low=0.0, high=1.0, size=k)
+            if k < 1:
+                k = np.random.randint(
+                    3, 10
+                )  # sample at least 3 categories, less than 3 would be Bernoulli
+            if uniform:
+                p = [1.0] * k
+            else:
+                p = np.random.uniform(low=0.0, high=1.0, size=k)
             p = p / np.sum(p)  # normalize values to sum up to 1
 
-        self.set_params(p)
+        self.set_params(p)  # type: ignore
 
     def set_params(self, p: List[float]) -> None:
-        p = np.array(p)
-        if np.any((p < 0.0) | (p > 1.0)):
+        p = np.array(p)  # type: ignore
+        if np.any((p < 0.0) | (p > 1.0)):  # type: ignore
             raise ValueError(
                 f"Values of p for Categorical distribution must be between 0 and 1, but were: {p}"
             )
-        if not np.isclose(np.sum(p), 1.0):
+        if not np.isclose(np.sum(p), 1.0):  # type: ignore
             raise ValueError(
                 f"Values of p for Categorical distribution must sum up to 1, but were: {np.sum(p)}"
             )
 
-        self.p = p.tolist()
+        self.p = p.tolist()  # type: ignore
         self.k = len(p)
 
     def get_params(self) -> List[int]:

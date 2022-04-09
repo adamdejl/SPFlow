@@ -1,3 +1,4 @@
+# type: ignore
 from typing import Callable, Dict
 import numpy as np
 from scipy.special import logsumexp

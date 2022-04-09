@@ -4,7 +4,7 @@ from scipy.special import logsumexp  # type: ignore
 from time import time
 from multipledispatch import dispatch  # type: ignore
 from spflow.base.inference.nodes.node import log_likelihood
-from spflow.base.learning.gradient import gradient_backward
+from spflow.base.learning.gradient import gradient_backward  # type: ignore
 from spflow.base.structure.network_type import SPN
 from spflow.base.structure.nodes.leaves.parametric.bernoulli import Bernoulli
 from spflow.base.structure.nodes.leaves.parametric.categorical import Categorical
@@ -33,9 +33,12 @@ from spflow.base.structure.nodes.node import (
     set_node_ids,
 )
 from spflow.base.structure.nodes.validity_checks import _isvalid_spn
+import warnings
 
 
-def global_em(spn: INode, data: np.ndarray, iterations: int = 10, hard_em: bool = True) -> Tuple[float, float, float]:
+def global_em(
+    spn: INode, data: np.ndarray, iterations: int = 10, hard_em: bool = True
+) -> Tuple[float, float, float]:
     """Optimize the parameteres of a given SPN w.r.t. data using an Expectation-Maximization algorithm.
 
     In a downward pass, the entries in data are assigned to nodes in the SPN. At sum nodes, each data point is assigned to the child
@@ -44,11 +47,11 @@ def global_em(spn: INode, data: np.ndarray, iterations: int = 10, hard_em: bool 
     assigned data points
 
     Arguments:
-        spn: 
+        spn:
             The root node of the SPN to be optimized.
-        data: 
+        data:
             The (2D) data used to optimize the parameters of the spn.
-        iterations: 
+        iterations:
             Number of iterations of the procedure.
 
     Returns:
@@ -77,14 +80,14 @@ def global_em(spn: INode, data: np.ndarray, iterations: int = 10, hard_em: bool 
 def global_em_update(node: ISumNode, data: np.ndarray) -> None:
     """Split the data at the given node according to the log-likelihood of the data points.
 
-    Each data point is assigned to the child of the SumNode at which it has its maximum log-likelihood computed. This is done in a 
+    Each data point is assigned to the child of the SumNode at which it has its maximum log-likelihood computed. This is done in a
     hard-EM/deterministic fashion. Then, the weights of each child are recomputed as the size ratio of the assigned data points.
 
-    Note: Usually, in EM theory, the weights of mixture models are taken into account while computing the assignments of data points. 
-    However, children whose weights are initially low tend to be assigned no data points, leading to degenerate solutions (similar to 
-    the vanishing gradients effect). Therefore, during the assignment, the occurence of data points w.r.t. each child is currently 
+    Note: Usually, in EM theory, the weights of mixture models are taken into account while computing the assignments of data points.
+    However, children whose weights are initially low tend to be assigned no data points, leading to degenerate solutions (similar to
+    the vanishing gradients effect). Therefore, during the assignment, the occurence of data points w.r.t. each child is currently
     assumed to be distributed uniformly.
-    The assignment is part of the Expectation-Step, recomputing the weights is part of the Maximization-Step. This does not contradict 
+    The assignment is part of the Expectation-Step, recomputing the weights is part of the Maximization-Step. This does not contradict
     the EM procedure, as we're proceeding top-down and the M-step is not taken into account of the E-step of the same iteration.
 
     Arguments:
@@ -93,6 +96,10 @@ def global_em_update(node: ISumNode, data: np.ndarray) -> None:
         data:
             The data points to be assigned to the children of node.
     """
+    if data.shape[0] == 0:
+        warnings.warn("Warning: 'data' with 0 entries cannot be processed.", RuntimeWarning)
+        return
+
     children_lls = np.empty(shape=(data.shape[0], len(node.children)))
     for i, child in enumerate(node.children):
         children_lls[:, i] = log_likelihood(SPN(), child, data).reshape(
@@ -100,7 +107,7 @@ def global_em_update(node: ISumNode, data: np.ndarray) -> None:
         )  # + np.log(node.weights[i])
         # TODO: do the weights of the children have to be taken into account?
         # I think yes, BUT: if a cluster has very low probability, it may not get assigned any instances. This can lead to degenerate solutions.
-        # If weights are considered ( + np.log(node.weights[i]) ), then passing data of size 0 has to be handled 
+        # If weights are considered ( + np.log(node.weights[i]) ), then passing data of size 0 has to be handled
     children_assignments = np.argmax(children_lls, axis=1)
     children_data = [data[children_assignments[:] == k, :] for k in range(len(node.children))]
 
@@ -108,16 +115,19 @@ def global_em_update(node: ISumNode, data: np.ndarray) -> None:
     node.weights = new_cluster_sizes / np.sum(new_cluster_sizes)
 
     for i, child in enumerate(node.children):
-        global_em_update(child, children_data[i])
+        if len(children_data[i]) == 0:
+            warnings.warn("Cannot process data with 0 entries", RuntimeWarning)
+        else:
+            global_em_update(child, children_data[i])
 
 
-@dispatch(IProductNode, np.ndarray) # type: ignore[no-redef]
+@dispatch(IProductNode, np.ndarray)  # type: ignore[no-redef]
 def global_em_update(node: IProductNode, data: np.ndarray) -> None:
-    """Split the data according to the node's children's scope
-    
-    Children of product nodes have distinct scopes, hence split the data (columns) according to the scope of the node's children.
+    """Pass the data to the node's children.
+
+    Pass data as it is to the children of the node. Splitting it for MLE is handled in the method of the children.
     This is part of the Expectation-Step.
-    
+
     Arguments:
         node:
             The product node.
@@ -125,15 +135,14 @@ def global_em_update(node: IProductNode, data: np.ndarray) -> None:
             The data to be assigned to the node's children.
     """
     for child in node.children:
-        global_em_update(child, data[:, child.scope])
+        global_em_update(child, data)  # [:, child.scope])
 
 
-@dispatch(ILeafNode, np.ndarray) # type: ignore[no-redef]
+@dispatch(ILeafNode, np.ndarray)  # type: ignore[no-redef]
 def global_em_update(node: ILeafNode, data: np.ndarray) -> None:
-    """Compute the MLE of the leaf node given it's assignments.
+    """Compute the MLE of the leaf node with respect to its scope given it's assignments.
 
-    Each leaf node receives a subset of data with its own scope that it is most likely to have produced. A Maximum-Likelihood
-    Estimation is carried out on the leaf's assigned data points.
+    Each leaf node computes the MLE of a subset of data (with respect to the node's scope) that it is most likely to have produced.
     This is part of the Maximization-Step.
 
     Arguments:
@@ -142,13 +151,14 @@ def global_em_update(node: ILeafNode, data: np.ndarray) -> None:
         data:
             The assignments to the leaf node used for the optimization.
     """
-    maximum_likelihood_estimation(node, data)
+    maximum_likelihood_estimation(node, data[:, node.scope])
 
 
-
-def __local_em(spn: INode, data: np.ndarray, iterations: int = 10, hard_em: bool = False) ->  Tuple[float, float, float]:
-    """ This is the EM procedure for mixture models, derived from the algorithm in Bishop's Pattern Recognition and Machine Learning.
-    This algorithm does not work for SPN as depicted. Opposed to traditional mixture models, SPN's are multi-level hierarchical models. 
+def __local_em(
+    spn: INode, data: np.ndarray, iterations: int = 10, hard_em: bool = False
+) -> Tuple[float, float, float]:
+    """This is the EM procedure for mixture models, derived from the algorithm in Bishop's Pattern Recognition and Machine Learning.
+    This algorithm does not work for SPN as depicted. Opposed to traditional mixture models, SPN's are multi-level hierarchical models.
     Data points in SPNs are not simply assigned to clusters as a whole, but split into smaller parts represented by nodes located deeper
     within the SPN. This introduces challenges in the EM algorithm, at is is not clear which node is responsible for which data.
     First tests led to degenerate solutions, where all leafs converged to the same parameters, resembling a Maximum-Likelihood Estimation
@@ -210,9 +220,9 @@ def __compute_responsibilities(node: ISumNode, data: np.ndarray, hard_em: bool) 
     prior_cluster_probs = node.weights
 
     # dirty prototype
-    datapoint_responsibilities = np.zeros(shape=(data.shape[0], len(prior_cluster_probs.tolist())))
+    datapoint_responsibilities = np.zeros(shape=(data.shape[0], len(prior_cluster_probs.tolist())))  # type: ignore
     for datapoint_index, x in enumerate(data):
-        for cluster_index, pi in enumerate(prior_cluster_probs.tolist()):
+        for cluster_index, pi in enumerate(prior_cluster_probs.tolist()):  # type: ignore
             cluster_node = node.children[cluster_index]
             ll = log_likelihood(SPN(), cluster_node, np.array([x]))
             gamma = pi * ll
@@ -235,14 +245,13 @@ def __compute_responsibilities(node: ISumNode, data: np.ndarray, hard_em: bool) 
     return datapoint_responsibilities
 
 
-
 def __poon_domingos_em(
     spn: INode, data: np.ndarray, iterations: int = 10, hard_em: bool = False
 ) -> Tuple[float, float, float]:
     """This is the EM algorithm of the original SPFlow, implemented according to the procedure described by Poon and Domingos in their paper introducing SPNs.
     First tests showed that this algorithm does not lead to optimization of the parameters. In some cases, it worsens the log-likelihood of the SPN.
-    Still need to investigate if this is an error in the procedure or the implementation. 
-    So far, refer to "global_em()", a working EM procedure with hard assignments. """
+    Still need to investigate if this is an error in the procedure or the implementation.
+    So far, refer to "global_em()", a working EM procedure with hard assignments."""
     _isvalid_spn(spn)
     ll_pre = np.sum(log_likelihood(SPN(), spn, data))
     start_time = time()
@@ -363,7 +372,6 @@ def __poon_domingos_em_update(
     assert not np.isnan(paramlse)
     p = min(max(paramlse, 0), 1)
     node.set_params(p)
-
 
 
 def compute_exponential_family_pdf(node: INode, X: np.ndarray) -> float:

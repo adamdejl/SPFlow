@@ -62,17 +62,24 @@ class INode:
         ), "unnormalized weights, maybe trying to add many nodes at the same time?"
 
         scope = self.scope
-        sum_node = ISumNode(children=[self, other], scope=scope, weights=np.array([self._tmp_weight, other._tmp_weight]))
+        sum_node = ISumNode(
+            children=[self, other],
+            scope=scope,
+            weights=np.array([self._tmp_weight, other._tmp_weight]),
+        )
         return sum_node
-    
+
     def __mul__(self, other: "INode") -> "IProductNode":
         assert isinstance(other, INode)
         assert len(self.scope) > 0, "left node has no scope"
         assert len(other.scope) > 0, "right node has no scope"
-        assert len(set(self.scope).intersection(set(other.scope))) == 0, "children's scope is not disjoint"
-        product_node = IProductNode(children=[self, other], scope=list(set(self.scope).union(set(other.scope))))
+        assert (
+            len(set(self.scope).intersection(set(other.scope))) == 0
+        ), "children's scope is not disjoint"
+        product_node = IProductNode(
+            children=[self, other], scope=list(set(self.scope).union(set(other.scope)))
+        )
         return product_node
-
 
     def print_treelike(self, prefix: str = "") -> None:
         """
@@ -131,8 +138,8 @@ class ISumNode(INode):
             other = cast(ISumNode, other)
             return (
                 super().equals(other)
-                and np.allclose(self.weights, other.weights, rtol=1.0e-5)
-                and self.weights.shape == other.weights.shape
+                and np.allclose(self.weights, other.weights, rtol=1.0e-5)  # type: ignore
+                and self.weights.shape == other.weights.shape  # type: ignore
             )
         else:
             return False
@@ -506,8 +513,8 @@ def eval_spn_top_down(
 
 def set_node_ids(root: INode) -> None:
     """Set node IDs in the SPN by counting the nodes.
-    
-    Args: 
+
+    Args:
         root: The root node of the SPN.
 
     Returns: None

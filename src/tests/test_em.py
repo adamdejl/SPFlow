@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import List, Tuple
 import unittest
 import numpy as np
 from sklearn.datasets import make_blobs  # type: ignore
@@ -26,7 +26,7 @@ class TestEM(unittest.TestCase):
 
     def em_gaussian_clusters(
         self, spn, n_samples, centers, centers_std, em_iterations, seed=17
-    ) -> Tuple[float, float, np.ndarray]:
+    ) -> Tuple[List[float], np.ndarray]:
         data_points, cluster_assignments = make_blobs(
             n_samples=n_samples,
             n_features=1,
@@ -38,10 +38,10 @@ class TestEM(unittest.TestCase):
             (data_points.reshape(n_samples, -1), cluster_assignments.reshape(n_samples, -1)), axis=1
         )
 
-        time, ll_post, ll_pre = em(spn, data, iterations=em_iterations)
+        loll, test = em(spn, data, iterations=em_iterations)
         # print(ll_post, ll_pre)
         # _print_node_graph(spn)
-        return ll_post, ll_pre, data
+        return loll, data
 
     def test_em_simple_gaussian_likelihood_improvement(self):
 
@@ -53,14 +53,15 @@ class TestEM(unittest.TestCase):
         n_samples = [10, 100, 10000]
         centers = np.array([-5.0, 5.0]).reshape(-1, 1)
         centers_std = 2.0
-        em_iterations = [1, 10, 100]
+        em_iterations = [1, 10, -1]
 
         for n in n_samples:
             for iter in em_iterations:
-                ll_post, ll_pre, _ = self.em_gaussian_clusters(
+                loll, _ = self.em_gaussian_clusters(
                     deepcopy(spn), n, centers, centers_std, iter
                 )
-                self.assertTrue(ll_post >= ll_pre)
+                for i in range (1, len(loll)):
+                    self.assertTrue(loll[i-1] <= loll[i])
 
     def test_em_simple_gaussian_random_initialization_likelihood_improvement_1(self):
 
@@ -70,14 +71,15 @@ class TestEM(unittest.TestCase):
         n_samples = [10, 100, 10000]
         centers = np.array([-5.0, 5.0]).reshape(-1, 1)
         centers_std = 2.0
-        em_iterations = [1, 10, 100]
+        em_iterations = [1, 10, -1]
 
         for n in n_samples:
             for iter in em_iterations:
-                ll_post, ll_pre, _ = self.em_gaussian_clusters(
+                loll, _ = self.em_gaussian_clusters(
                     deepcopy(spn), n, centers, centers_std, iter
                 )
-                self.assertTrue(ll_post >= ll_pre)
+                for i in range (1, len(loll)):
+                    self.assertTrue(loll[i-1] <= loll[i])
 
     def test_em_simple_gaussian_random_initialization_likelihood_improvement_2(self):
 
@@ -89,14 +91,15 @@ class TestEM(unittest.TestCase):
         n_samples = [10, 100, 10000]
         centers = np.array([-5.0, 5.0]).reshape(-1, 1)
         centers_std = 2.0
-        em_iterations = [1, 10, 100]
+        em_iterations = [1, 10, -1]
 
         for n in n_samples:
             for iter in em_iterations:
-                ll_post, ll_pre, _ = self.em_gaussian_clusters(
+                loll, _ = self.em_gaussian_clusters(
                     deepcopy(spn), n, centers, centers_std, iter
                 )
-                self.assertTrue(ll_post >= ll_pre)
+                for i in range (1, len(loll)):
+                    self.assertTrue(loll[i-1] <= loll[i])
 
     def test_em_multiple_gaussian_clusters_likelihood_improvement(self):
 
@@ -116,14 +119,15 @@ class TestEM(unittest.TestCase):
         n_samples = [10, 100, 10000]
         centers = np.array([-100.0, -50.0, 0.0, 50.0, 100.0]).reshape(-1, 1)
         centers_std = 5.0
-        em_iterations = [1, 10, 100]
+        em_iterations = [1, 10, -1]
 
         for n in n_samples:
             for iter in em_iterations:
-                ll_post, ll_pre, _ = self.em_gaussian_clusters(
+                loll, _ = self.em_gaussian_clusters(
                     deepcopy(spn), n, centers, centers_std, iter
                 )
-                self.assertTrue(ll_post >= ll_pre)
+                for i in range (1, len(loll)):
+                    self.assertTrue(loll[i-1] <= loll[i])
 
     def test_em_validate_parameters_simple(self):
         spn = 0.1 * (Gaussian([0], -2.0, 5.0) * Bernoulli([1], 0.3)) + 0.9 * (
@@ -136,11 +140,12 @@ class TestEM(unittest.TestCase):
         centers_std = 2.0
         em_iterations = 10
 
-        ll_post, ll_pre, data = self.em_gaussian_clusters(
+        loll, data = self.em_gaussian_clusters(
             spn, n_samples, centers, centers_std, em_iterations
         )
 
-        self.assertTrue(ll_post > ll_pre)
+        for i in range (1, len(loll)):
+            self.assertTrue(loll[i-1] <= loll[i])
         data_cluster_0 = data[data[:, 1] == 0]
         data_cluster_1 = data[data[:, 1] == 1]
         self.assertAlmostEqual(spn.weights[0], len(data_cluster_0) / len(data))
@@ -158,7 +163,7 @@ class TestEM(unittest.TestCase):
 
     def test_em_pure_gaussian_tree(self):
         n_samples = [10, 100, 10000]
-        em_iterations = [1, 10, 100]
+        em_iterations = [1, 10, -1]
         centers = [(5.0, 5.0), (-5.0, -5.0)]
         cluster_std = 3.0
 
@@ -175,12 +180,13 @@ class TestEM(unittest.TestCase):
             )
             print(data)
             for iter in em_iterations:
-                test, ll_post, ll_pre = em(deepcopy(spn), data, iter)
-                self.assertTrue(ll_post >= ll_pre)
+                loll, test = em(deepcopy(spn), data, iter)
+                for i in range (1, len(loll)):
+                    self.assertTrue(loll[i-1] <= loll[i])
 
     def test_em_pure_gaussian_graph(self):
         n_samples = [10, 100, 10000]
-        em_iterations = [1, 10, 100]
+        em_iterations = [1, 10, -1]
         centers = [(5.0, 5.0), (-5.0, -5.0)]
         cluster_std = 3.0
 
@@ -201,13 +207,14 @@ class TestEM(unittest.TestCase):
             )
             print(data)
             for iter in em_iterations:
-                test, ll_post, ll_pre = em(deepcopy(spn), data, iter)
-                self.assertTrue(ll_post >= ll_pre)
+                loll, test = em(deepcopy(spn), data, iter)
+                for i in range (1, len(loll)):
+                    self.assertTrue(loll[i-1] <= loll[i])
 
     def test_em_mixed_spn_fully_factorized(self):
         # test SPNs with Poisson, Beta, Gamma, Expon, Geometric nodes
         n_samples = [10, 100, 10000]
-        em_iterations = [1, 10, 100]
+        em_iterations = [1, 10, -1]
 
         distributions = [poisson, gamma, expon, geom]
         distributions_params = [
@@ -229,13 +236,14 @@ class TestEM(unittest.TestCase):
                 data[:, i] = distr.ppf(data[:, i], **distributions_params[i])
 
             for iter in em_iterations:
-                time, ll_post, ll_pre = em(deepcopy(spn), data, iter)
-                self.assertTrue(ll_post >= ll_pre)
+                loll, test = em(deepcopy(spn), data, iter)
+                for i in range (1, len(loll)):
+                    self.assertTrue(loll[i-1] <= loll[i])
 
     def test_em_deep_mixed_spn(self):
         # test SPNs with Poisson, Beta, Gamma, Expon, Geometric nodes
         n_samples = [10, 100, 10000]
-        em_iterations = [1, 10, 100]
+        em_iterations = [1, 10, -1]
 
         distributions = [poisson, gamma, expon, geom]
         distributions_params_1 = [
@@ -246,7 +254,7 @@ class TestEM(unittest.TestCase):
         ]
         distributions_params_2 = [
             {"mu": 3.0},
-            {"a": 1.0, "scale": 1.0 / 3.0},
+            {"a": 1.1, "scale": 1.0 / 3.0},
             {"scale": 1.0 / 5.0},
             {"p": 0.7},
         ]
@@ -264,8 +272,9 @@ class TestEM(unittest.TestCase):
                 data[len(data) :, i] = distr.ppf(data[len(data) :, i], **distributions_params_2[i])
 
             for iter in em_iterations:
-                time, ll_post, ll_pre = em(deepcopy(spn), data, iter)
-                self.assertTrue(ll_post >= ll_pre)
+                loll, test = em(deepcopy(spn), data, iter)
+                for i in range (1, len(loll)):
+                    self.assertTrue(loll[i-1] <= loll[i])
 
 
 if __name__ == "__main__":

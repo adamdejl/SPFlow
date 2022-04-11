@@ -1,4 +1,4 @@
-from typing import Callable, Tuple
+from typing import Callable, List, Tuple
 import numpy as np  # type: ignore
 from scipy.special import logsumexp  # type: ignore
 from time import time
@@ -37,8 +37,8 @@ import warnings
 
 
 def global_em(
-    spn: INode, data: np.ndarray, iterations: int = 10, hard_em: bool = True
-) -> Tuple[float, float, float]:
+    spn: INode, data: np.ndarray, iterations: int = -1, hard_em: bool = True
+) -> Tuple[List[float], float]:
     """Optimize the parameteres of a given SPN w.r.t. data using an Expectation-Maximization algorithm.
 
     In a downward pass, the entries in data are assigned to nodes in the SPN. At sum nodes, each data point is assigned to the child
@@ -52,28 +52,40 @@ def global_em(
         data:
             The (2D) data used to optimize the parameters of the spn.
         iterations:
-            Number of iterations of the procedure.
+            Number of iterations of the procedure. If iterations is 0 or less, the algorithm will run until convergence.
 
     Returns:
-        Tuple of computatation time, log-likelihood after the optimization, and log-likelihood before the optimization.
+        Tuple of a list containing the log-likelihoods of the original SPN w.r.t. the data and after each EM step, and the computation time.
     """
     if not hard_em:
         raise NotImplementedError(
             "currently, the global EM procedure is only implemented in hard EM fashion"
         )
-
     _isvalid_spn(spn)
-    ll_pre = np.sum(log_likelihood(SPN(), spn, data))
+
+    stop_on_convergence = True if iterations < 1 else False
+    loll = []
+    loll.append(np.sum(log_likelihood(SPN(), spn, data)))
+
     start_time = time()
 
     # TODO: possible optimization: compute all LLs of all nodes in one log-likelihood() pass, execute E-step and M-step with get_topological_order()
-    for i in range(iterations):
+    i = 1
+    while(True):
         global_em_update(spn, data)
+        loll.append(np.sum(log_likelihood(SPN(), spn, data)))
+
+        if stop_on_convergence:
+            if np.isclose(loll[i], loll[i-1]):
+                break
+        else:
+            if i >= iterations:
+                break
+        i += 1
 
     computation_time = start_time - time()
-    ll_post = np.sum(log_likelihood(SPN(), spn, data))
 
-    return (computation_time, ll_post, ll_pre)
+    return (loll, computation_time)
 
 
 @dispatch(ISumNode, np.ndarray)  # type: ignore[no-redef]
@@ -104,7 +116,7 @@ def global_em_update(node: ISumNode, data: np.ndarray) -> None:
     for i, child in enumerate(node.children):
         children_lls[:, i] = log_likelihood(SPN(), child, data).reshape(
             (data.shape[0],)
-        )  # + np.log(node.weights[i])
+        )  + np.log(node.weights[i])
         # TODO: do the weights of the children have to be taken into account?
         # I think yes, BUT: if a cluster has very low probability, it may not get assigned any instances. This can lead to degenerate solutions.
         # If weights are considered ( + np.log(node.weights[i]) ), then passing data of size 0 has to be handled
@@ -151,7 +163,8 @@ def global_em_update(node: ILeafNode, data: np.ndarray) -> None:
         data:
             The assignments to the leaf node used for the optimization.
     """
-    maximum_likelihood_estimation(node, data[:, node.scope])
+    if data.size != 0:
+        maximum_likelihood_estimation(node, data[:, node.scope])
 
 
 def __local_em(

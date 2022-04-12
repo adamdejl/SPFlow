@@ -164,8 +164,6 @@ def maximum_likelihood_estimation(node: Exponential, data: np.ndarray) -> None:
 def maximum_likelihood_estimation(node: Gamma, data: np.ndarray) -> None:
     data = validate_data(data, 1)
 
-    print(data)
-
     # default, originally written by Alejandro Molina
     alpha = 1.1
     beta = 1.0
@@ -177,13 +175,13 @@ def maximum_likelihood_estimation(node: Gamma, data: np.ndarray) -> None:
     if np.isclose(np.std(data), 0):
         alpha = np.mean(data).item()
         print(f"Warning: {node} has 0 variance, adding noise")
-
-    alpha, loc, theta = gamma.fit(data, floc=0)
-    beta = 1.0 / theta
+    else:
+        alpha, loc, theta = gamma.fit(data, floc=0)
+        beta = 1.0 / theta
     if np.isfinite(alpha):
         node.set_params(alpha, beta)
     else:
-        raise InvalidParametersError(f"{node}: 'alpha' is not finite, node's parameters were NOT set")
+        raise InvalidParametersError(f"{node}: 'alpha' is not finite, node's parameters {alpha, beta} were NOT set")
 
 
 def validate_data(

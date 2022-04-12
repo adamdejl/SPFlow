@@ -116,10 +116,7 @@ def global_em_update(node: ISumNode, data: np.ndarray) -> None:
     for i, child in enumerate(node.children):
         children_lls[:, i] = log_likelihood(SPN(), child, data).reshape(
             (data.shape[0],)
-        )  + np.log(node.weights[i])
-        # TODO: do the weights of the children have to be taken into account?
-        # I think yes, BUT: if a cluster has very low probability, it may not get assigned any instances. This can lead to degenerate solutions.
-        # If weights are considered ( + np.log(node.weights[i]) ), then passing data of size 0 has to be handled
+        ) + np.log(node.weights[i])
     children_assignments = np.argmax(children_lls, axis=1)
     children_data = [data[children_assignments[:] == k, :] for k in range(len(node.children))]
 
@@ -128,7 +125,7 @@ def global_em_update(node: ISumNode, data: np.ndarray) -> None:
 
     for i, child in enumerate(node.children):
         if len(children_data[i]) == 0:
-            warnings.warn("Cannot process data with 0 entries", RuntimeWarning)
+            print(f"Warning: {node} got 0 data points assigned")
         else:
             global_em_update(child, children_data[i])
 

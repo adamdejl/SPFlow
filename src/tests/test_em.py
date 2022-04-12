@@ -61,7 +61,7 @@ class TestEM(unittest.TestCase):
                     deepcopy(spn), n, centers, centers_std, iter
                 )
                 for i in range (1, len(loll)):
-                    self.assertTrue(loll[i-1] <= loll[i])
+                    self.assertTrue(loll[i-1] <= loll[i], msg=loll)
 
     def test_em_simple_gaussian_random_initialization_likelihood_improvement_1(self):
 
@@ -79,7 +79,7 @@ class TestEM(unittest.TestCase):
                     deepcopy(spn), n, centers, centers_std, iter
                 )
                 for i in range (1, len(loll)):
-                    self.assertTrue(loll[i-1] <= loll[i])
+                    self.assertTrue(loll[i-1] <= loll[i], msg=loll)
 
     def test_em_simple_gaussian_random_initialization_likelihood_improvement_2(self):
 
@@ -99,7 +99,7 @@ class TestEM(unittest.TestCase):
                     deepcopy(spn), n, centers, centers_std, iter
                 )
                 for i in range (1, len(loll)):
-                    self.assertTrue(loll[i-1] <= loll[i])
+                    self.assertTrue(loll[i-1] <= loll[i], msg=loll)
 
     def test_em_multiple_gaussian_clusters_likelihood_improvement(self):
 
@@ -127,7 +127,7 @@ class TestEM(unittest.TestCase):
                     deepcopy(spn), n, centers, centers_std, iter
                 )
                 for i in range (1, len(loll)):
-                    self.assertTrue(loll[i-1] <= loll[i])
+                    self.assertTrue(loll[i-1] <= loll[i], msg=loll)
 
     def test_em_validate_parameters_simple(self):
         spn = 0.1 * (Gaussian([0], -2.0, 5.0) * Bernoulli([1], 0.3)) + 0.9 * (
@@ -145,7 +145,7 @@ class TestEM(unittest.TestCase):
         )
 
         for i in range (1, len(loll)):
-            self.assertTrue(loll[i-1] <= loll[i])
+            self.assertTrue(loll[i-1] <= loll[i], msg=loll)
         data_cluster_0 = data[data[:, 1] == 0]
         data_cluster_1 = data[data[:, 1] == 1]
         self.assertAlmostEqual(spn.weights[0], len(data_cluster_0) / len(data))
@@ -178,11 +178,10 @@ class TestEM(unittest.TestCase):
                 cluster_std=cluster_std,
                 random_state=17,
             )
-            print(data)
             for iter in em_iterations:
                 loll, test = em(deepcopy(spn), data, iter)
                 for i in range (1, len(loll)):
-                    self.assertTrue(loll[i-1] <= loll[i])
+                    self.assertTrue(loll[i-1] <= loll[i], msg=loll)
 
     def test_em_pure_gaussian_graph(self):
         n_samples = [10, 100, 10000]
@@ -205,11 +204,10 @@ class TestEM(unittest.TestCase):
                 cluster_std=cluster_std,
                 random_state=17,
             )
-            print(data)
             for iter in em_iterations:
                 loll, test = em(deepcopy(spn), data, iter)
                 for i in range (1, len(loll)):
-                    self.assertTrue(loll[i-1] <= loll[i])
+                    self.assertTrue(loll[i-1] <= loll[i], msg=loll)
 
     def test_em_mixed_spn_fully_factorized(self):
         # test SPNs with Poisson, Beta, Gamma, Expon, Geometric nodes
@@ -238,7 +236,7 @@ class TestEM(unittest.TestCase):
             for iter in em_iterations:
                 loll, test = em(deepcopy(spn), data, iter)
                 for i in range (1, len(loll)):
-                    self.assertTrue(loll[i-1] <= loll[i])
+                    self.assertTrue(loll[i-1] <= loll[i], msg=loll)
 
     def test_em_deep_mixed_spn(self):
         # test SPNs with Poisson, Beta, Gamma, Expon, Geometric nodes
@@ -254,7 +252,7 @@ class TestEM(unittest.TestCase):
         ]
         distributions_params_2 = [
             {"mu": 3.0},
-            {"a": 1.1, "scale": 1.0 / 3.0},
+            {"a": 1.1, "scale": 1.0},
             {"scale": 1.0 / 5.0},
             {"p": 0.7},
         ]
@@ -274,7 +272,7 @@ class TestEM(unittest.TestCase):
             for iter in em_iterations:
                 loll, test = em(deepcopy(spn), data, iter)
                 for i in range (1, len(loll)):
-                    self.assertTrue(loll[i-1] <= loll[i])
+                    self.assertTrue(loll[i-1] <= loll[i], msg=loll)
 
 
 if __name__ == "__main__":

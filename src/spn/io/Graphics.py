@@ -46,7 +46,7 @@ def _get_networkx_obj(spn):
     return g, labels
 
 
-def draw_spn(spn):
+def draw_spn(spn, width=8, height=6):
 
     import networkx as nx
     from networkx.drawing.nx_pydot import graphviz_layout
@@ -58,6 +58,7 @@ def draw_spn(spn):
 
     pos = graphviz_layout(g, prog="dot")
     ax = plt.gca()
+    plt.gcf().set_size_inches(width, height)
 
     nx.draw(
         g,
@@ -67,9 +68,9 @@ def draw_spn(spn):
         node_color="#DDDDDD",
         edge_color="#888888",
         width=1,
-        node_size=1250,
+        node_size=700,
         labels=labels,
-        font_size=16,
+        font_size=12,
     )
     ax.collections[0].set_edgecolor("#333333")
     edge_labels = nx.draw_networkx_edge_labels(
@@ -87,8 +88,9 @@ def draw_spn(spn):
     plt.gca().yaxis.set_major_locator(NullLocator())
     return plt
 
-def plot_spn(spn, fname="plot.pdf"):
-    plt = draw_spn(spn)
+
+def plot_spn(spn, fname="plot.pdf", width=8, height=6):
+    plt = draw_spn(spn, width=width, height=height)
     plt.savefig(fname, bbox_inches="tight", pad_inches=0)
 
 

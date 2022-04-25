@@ -71,12 +71,12 @@ def global_em(
 
     # TODO: possible optimization: compute all LLs of all nodes in one log-likelihood() pass, execute E-step and M-step with get_topological_order()
     i = 1
-    while(True):
+    while True:
         global_em_update(spn, data)
         loll.append(np.sum(log_likelihood(SPN(), spn, data)))
 
         if stop_on_convergence:
-            if np.isclose(loll[i], loll[i-1]):
+            if np.isclose(loll[i], loll[i - 1]):
                 break
         else:
             if i >= iterations:
@@ -114,9 +114,9 @@ def global_em_update(node: ISumNode, data: np.ndarray) -> None:
 
     children_lls = np.empty(shape=(data.shape[0], len(node.children)))
     for i, child in enumerate(node.children):
-        children_lls[:, i] = log_likelihood(SPN(), child, data).reshape(
-            (data.shape[0],)
-        ) + np.log(node.weights[i])
+        children_lls[:, i] = log_likelihood(SPN(), child, data).reshape((data.shape[0],)) + np.log(
+            node.weights[i]
+        )
     children_assignments = np.argmax(children_lls, axis=1)
     children_data = [data[children_assignments[:] == k, :] for k in range(len(node.children))]
 
@@ -175,19 +175,32 @@ def __local_em(
     over the complete data. Refer to "global_em()" for a working version in hard-EM fashion.
     """
     _isvalid_spn(spn)
-    ll_pre = np.sum(log_likelihood(SPN(), spn, data))
+
+    stop_on_convergence = True if iterations < 1 else False
+    loll = []
+    loll.append(np.sum(log_likelihood(SPN(), spn, data)))
+
     start_time = time()
 
-    # TODO: use toplogical order to pass through node via bottom up, ignore leafs
-    for node in get_topological_order(spn):
-        if isinstance(node, ILeafNode):
-            continue
-        __local_em_update(node, data, iterations, hard_em)
+    i = 1
+    while True:
+        for node in get_topological_order(spn):
+            if isinstance(node, ILeafNode):
+                continue
+            __local_em_update(node, data, iterations, hard_em)
+        loll.append(np.sum(log_likelihood(SPN(), spn, data)))
+
+        if stop_on_convergence:
+            if np.isclose(loll[i], loll[i - 1]):
+                break
+        else:
+            if i >= iterations:
+                break
+        i += 1
 
     computation_time = start_time - time()
-    ll_post = np.sum(log_likelihood(SPN(), spn, data))
 
-    return (computation_time, ll_post, ll_pre)
+    return (loll, computation_time)
 
 
 @dispatch(ISumNode, np.ndarray, int, bool)  # type: ignore[no-redef]
@@ -269,7 +282,15 @@ def __poon_domingos_em(
     node_log_likelihoods = np.zeros((data.shape[0], np.sum(_get_node_counts(spn))))
     set_node_ids(spn)
 
-    for i in range(iterations):
+
+    stop_on_convergence = True if iterations < 1 else False
+    loll = []
+    loll.append(np.sum(log_likelihood(SPN(), spn, data)))
+
+    start_time = time()
+
+    i = 1
+    while True:
         results = log_likelihood(SPN(), spn, data, return_all_results=True)
 
         for node, ll in results.items():
@@ -289,11 +310,19 @@ def __poon_domingos_em(
                 all_log_likelihoods=node_log_likelihoods,
                 all_gradients=gradients,
             )
+        loll.append(np.sum(log_likelihood(SPN(), spn, data)))
+
+        if stop_on_convergence:
+            if np.isclose(loll[i], loll[i - 1]):
+                break
+        else:
+            if i >= iterations:
+                break
+        i += 1
 
     computation_time = start_time - time()
-    ll_post = np.sum(log_likelihood(SPN(), spn, data))
 
-    return (computation_time, ll_post, ll_pre)
+    return (loll, computation_time)
 
 
 @dispatch(ISumNode, data=np.ndarray, node_log_likelihood=np.ndarray, node_gradients=np.ndarray, root_log_likelihoods=np.ndarray, all_log_likelihoods=np.ndarray, all_gradients=np.ndarray)  # type: ignore[no-redef]

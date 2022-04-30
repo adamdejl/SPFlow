@@ -112,6 +112,12 @@ class Leaf(Node):
                 raise Exception("invalid scope type %s " % (type(scope)))
 
 
+class Placeholder(Leaf):
+    def __init__(self, placeholder_id, scope=[None]):
+        Leaf.__init__(self, scope=scope)
+        self.placeholder_id = placeholder_id
+
+
 class Context:
     def __init__(self, meta_types=None, domains=None, parametric_types=None, feature_names=None):
         self.meta_types = meta_types

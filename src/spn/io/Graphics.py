@@ -32,6 +32,8 @@ def _get_networkx_obj(spn):
             label = "x"
         else:
             label = "V" + str(n.scope[0])
+        if hasattr(n, 'node_id'):
+            label += f" (ID {n.node_id})"
         g.add_node(n.id)
         labels[n.id] = label
 
@@ -71,6 +73,8 @@ def draw_spn(spn, width=8, height=6):
         node_size=700,
         labels=labels,
         font_size=12,
+        node_shape='',
+        bbox=dict(facecolor="white", edgecolor='black', boxstyle='round,pad=0.2')
     )
     ax.collections[0].set_edgecolor("#333333")
     edge_labels = nx.draw_networkx_edge_labels(

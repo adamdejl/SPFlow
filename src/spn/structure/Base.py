@@ -37,13 +37,8 @@ class Node(object):
         assert len(node.scope) > 0, "right node has no scope"
         assert len(self.scope) > 0, "left node has no scope"
         assert len(set(node.scope).intersection(set(self.scope))) == 0, "children's scope is not disjoint"
-        result = Product()
-        result.children.append(self)
-        result.children.append(node)
-        result.scope.extend(self.scope)
-        result.scope.extend(node.scope)
-        assign_ids(result)
-        return result
+
+        return Product(children=[self, node])
 
     def __add__(self, node):
         assert isinstance(node, Node)
@@ -52,10 +47,7 @@ class Node(object):
         assert len(node.scope) > 0, "right node has no scope"
         assert len(self.scope) > 0, "left node has no scope"
         assert set(node.scope) == (set(self.scope)), "children's scope are not the same"
-
-        from numpy import isclose
-
-        assert isclose(
+        assert np.isclose(
             1.0, self._tmp_weight + node._tmp_weight
         ), "unnormalized weights, maybe trying to add many nodes at the same time?"
 
@@ -106,6 +98,18 @@ class Product(Node):
         if children is None:
             children = []
         self.children = children
+
+        for child1 in children:
+            assert isinstance(child1, Node)
+            assert len(child1.scope) > 0, "one of the children has no scope"
+            for child2 in children:
+                if child1 != child2:
+                    assert (
+                        len(set(child1.scope).intersection(set(child2.scope))) == 0
+                    ), "children's scope is not pairwise disjoint"
+            self.scope.extend(child1.scope)
+
+        assign_ids(self)
 
     @property
     def parameters(self):

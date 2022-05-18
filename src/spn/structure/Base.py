@@ -59,15 +59,7 @@ class Node(object):
             1.0, self._tmp_weight + node._tmp_weight
         ), "unnormalized weights, maybe trying to add many nodes at the same time?"
 
-        result = Sum()
-        result.children.append(self)
-        result.weights.append(self._tmp_weight)
-        result.children.append(node)
-        result.weights.append(node._tmp_weight)
-        result.scope.extend(self.scope)
-        result._tmp_weight = self._tmp_weight + node._tmp_weight
-        assign_ids(result)
-        return result
+        return Sum(children=[self, node])
 
 
 class Sum(Node):
@@ -75,11 +67,31 @@ class Sum(Node):
         Node.__init__(self)
         if weights is None:
             weights = []
+        else:
+            assert np.isclose(1.0, sum(weights)), "unnormalized weights (values in the provided list do not sum to 1)"
         self.weights = weights
 
         if children is None:
             children = []
+        else:
+            try:
+                node_scope = children[0].scope
+            except:
+                assert False, "cannot access scope of the first child of a sum node"
+            for child in children:
+                assert isinstance(child, Node)
+                assert len(child.scope) > 0, "one of the children has no scope"
+                assert set(child.scope) == set(node_scope), "children's scopes are not the same"
+                if len(children) != len(self.weights):
+                    assert hasattr(child, "_tmp_weight"), "one of the children has no weight"
+                    self.weights.append(child._tmp_weight)
+            self.scope.extend(node_scope)
         self.children = children
+
+        assert len(self.children) == len(self.weights), "the provided weights do not match the number of children"
+        self._tmp_weight = sum(self.weights)
+
+        assign_ids(self)
 
     @property
     def parameters(self):

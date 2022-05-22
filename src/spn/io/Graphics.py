@@ -34,8 +34,10 @@ def _get_networkx_obj(spn):
             label = f"<P{n.placeholder_id}>"
         else:
             label = "V" + str(n.scope[0])
+        if hasattr(n, "var_name"):
+            label += f"\n(VN: {n.var_name}, VID: {n.var_id})"
         if hasattr(n, "node_id"):
-            label += f" (ID {n.node_id})"
+            label += f"\n(ID {n.node_id})"
         g.add_node(n.id)
         labels[n.id] = label
 
@@ -74,7 +76,7 @@ def draw_spn(spn, width=8, height=6):
         width=1,
         node_size=700,
         labels=labels,
-        font_size=12,
+        font_size=9,
         node_shape="",
         bbox=dict(facecolor="white", edgecolor="black", boxstyle="round,pad=0.2"),
     )

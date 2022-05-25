@@ -367,7 +367,7 @@ def assign_ids(node, ids=None):
     return node
 
 
-def eval_spn_bottom_up(node, eval_functions, all_results=None, debug=False, **args):
+def eval_spn_bottom_up(node, eval_functions, all_results=None, debug=False, return_all=False, **args):
     """
     Evaluates the spn bottom up
 
@@ -432,6 +432,8 @@ def eval_spn_bottom_up(node, eval_functions, all_results=None, debug=False, **ar
         if len(node_type._eval_func) == 0:
             delattr(node_type, "_eval_func")
 
+    if return_all:
+        return all_results
     return all_results[node]
 
 

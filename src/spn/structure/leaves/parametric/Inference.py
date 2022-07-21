@@ -23,6 +23,7 @@ def continuous_log_likelihood(node, data=None, dtype=np.float64, **kwargs):
     probs[~marg_ids] = scipy_obj.logpdf(observations, **params)
     return probs
 
+
 def continuous_likelihood(node, data=None, dtype=np.float64, **kwargs):
     probs, marg_ids, observations = leaf_marginalized_likelihood(node, data, dtype)
     scipy_obj, params = get_scipy_obj_params(node)
@@ -33,7 +34,7 @@ def continuous_likelihood(node, data=None, dtype=np.float64, **kwargs):
 def continuous_multivariate_likelihood(node, data=None, dtype=np.float64, **kwargs):
     probs = np.ones((data.shape[0], 1), dtype=dtype)
     observations = data[:, node.scope]
-    assert not np.any(np.isnan(data))
+    assert not np.any(np.isnan(observations))
     scipy_obj, params = get_scipy_obj_params(node)
     probs[:, 0] = scipy_obj.pdf(observations, **params)
     return probs
@@ -62,13 +63,14 @@ def discrete_log_likelihood(node, data=None, dtype=np.float64, **kwargs):
     probs[np.isinf(probs)] = MIN_NEG  # 0.000000001
     return probs
 
+
 def discrete_likelihood(node, data=None, dtype=np.float64, **kwargs):
     probs, marg_ids, observations = leaf_marginalized_likelihood(node, data, dtype)
     scipy_obj, params = get_scipy_obj_params(node)
     probs[~marg_ids] = scipy_obj.pmf(observations, **params)
     probs[probs == 1.0] = 0.999999999
     probs[np.isinf(probs)] = 0.000000001
-    #probs[np.isinf(probs)] = MIN_NEG  # 0.000000001
+    # probs[np.isinf(probs)] = MIN_NEG  # 0.000000001
     return probs
 
 
@@ -117,4 +119,3 @@ def add_parametric_inference_support():
     add_node_likelihood(Exponential, log_lambda_func=continuous_log_likelihood)
     add_node_likelihood(Uniform, log_lambda_func=uniform_log_likelihood)
     add_node_likelihood(CategoricalDictionary, log_lambda_func=categorical_dictionary_log_likelihood)
-

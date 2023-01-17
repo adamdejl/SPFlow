@@ -49,7 +49,7 @@ class Node(object):
         assert set(node.scope) == (set(self.scope)), "children's scope are not the same"
         assert np.isclose(
             1.0, self._tmp_weight + node._tmp_weight
-        ), "unnormalized weights, maybe trying to add many nodes at the same time?"
+        ), f"unnormalized weights {self._tmp_weight} and {node._tmp_weight}, maybe trying to add many nodes at the same time?"
 
         return Sum(children=[self, node])
 
@@ -60,7 +60,9 @@ class Sum(Node):
         if weights is None:
             weights = []
         else:
-            assert np.isclose(1.0, sum(weights)), "unnormalized weights (values in the provided list do not sum to 1)"
+            assert np.isclose(
+                1.0, sum(weights)
+            ), f"unnormalized weights {weights} (values in the provided list do not sum to 1, they sum to {sum(weights)})"
         self.weights = weights
 
         if children is None:
